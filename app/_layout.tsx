@@ -1,4 +1,6 @@
 import "../global.css";
+// Side effect: defines the background health-sync task at module scope.
+import "@/lib/health/backgroundTask";
 
 import {
   Inter_400Regular,

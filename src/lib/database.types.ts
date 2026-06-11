@@ -12,6 +12,13 @@ export type Json =
   | Json[];
 
 export type ReportFileType = "pdf" | "image";
+export type HealthMetric =
+  | "heart_rate"
+  | "sleep_minutes"
+  | "steps"
+  | "spo2"
+  | "hrv"
+  | "active_energy";
 export type ReportStatus = "uploaded" | "processing" | "processed" | "failed";
 export type TimelineEventType = "report";
 export type ProfileSex = "female" | "male" | "other" | "undisclosed";
@@ -196,6 +203,81 @@ export interface Database {
         };
         Relationships: [];
       };
+      metric_samples: {
+        Row: {
+          id: string;
+          user_id: string;
+          metric: HealthMetric;
+          value: number;
+          unit: string;
+          measured_at: string;
+          source: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          metric: HealthMetric;
+          value: number;
+          unit: string;
+          measured_at: string;
+          source?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          metric?: HealthMetric;
+          value?: number;
+          unit?: string;
+          measured_at?: string;
+          source?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      metric_daily_rollups: {
+        Row: {
+          id: string;
+          user_id: string;
+          metric: HealthMetric;
+          day: string;
+          value: number;
+          min_value: number | null;
+          max_value: number | null;
+          sample_count: number;
+          unit: string;
+          source: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          metric: HealthMetric;
+          day: string;
+          value: number;
+          min_value?: number | null;
+          max_value?: number | null;
+          sample_count?: number;
+          unit: string;
+          source?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          metric?: HealthMetric;
+          day?: string;
+          value?: number;
+          min_value?: number | null;
+          max_value?: number | null;
+          sample_count?: number;
+          unit?: string;
+          source?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -209,3 +291,5 @@ export type ReportRow = Database["public"]["Tables"]["reports"]["Row"];
 export type ObservationRow = Database["public"]["Tables"]["extracted_observations"]["Row"];
 export type TimelineEventRow = Database["public"]["Tables"]["timeline_events"]["Row"];
 export type ShareTokenRow = Database["public"]["Tables"]["share_tokens"]["Row"];
+export type MetricSampleRow = Database["public"]["Tables"]["metric_samples"]["Row"];
+export type MetricDailyRollupRow = Database["public"]["Tables"]["metric_daily_rollups"]["Row"];

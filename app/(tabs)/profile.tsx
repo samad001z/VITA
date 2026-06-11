@@ -1,17 +1,31 @@
 import Constants from "expo-constants";
-import { ChevronRight, QrCode } from "lucide-react-native";
+import { Activity, ChevronRight, QrCode } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 
+import { HealthSheet } from "@/components/HealthSheet";
 import { ShareSheet } from "@/components/ShareSheet";
+import { useHealthSync } from "@/hooks/useHealthSync";
+import { METRIC_INFO } from "@/lib/health/types";
 import { useAuth } from "@/providers/AuthProvider";
 import { Button, Card, colors, enterUp, PressableScale, Screen, Text } from "@/ui";
 
 export default function ProfileScreen() {
   const { session, signOut } = useAuth();
+  const { enabledMetrics, syncing, refresh } = useHealthSync();
   const [signingOut, setSigningOut] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
+
+  const healthSubtitle =
+    enabledMetrics.length === 0
+      ? "Connect your watch or phone metrics"
+      : syncing
+        ? "Syncing…"
+        : enabledMetrics.length === 1
+          ? `${METRIC_INFO[enabledMetrics[0] ?? "steps"].label} syncing daily`
+          : `${enabledMetrics.length} metrics syncing daily`;
 
   const email = session?.user.email ?? "—";
   const initial = email.charAt(0).toUpperCase();
@@ -53,6 +67,36 @@ export default function ProfileScreen() {
         </Animated.View>
         <Animated.View entering={enterUp(2)}>
           <PressableScale
+            accessibilityLabel="Connect health data"
+            onPress={() => setHealthOpen(true)}
+          >
+            <Card>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: colors.sageSoft,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Activity size={20} strokeWidth={1.5} color={colors.sage} />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text variant="label">Health data</Text>
+                  <Text variant="caption" tone="soft">
+                    {healthSubtitle}
+                  </Text>
+                </View>
+                <ChevronRight size={18} strokeWidth={1.5} color={colors.inkFaint} />
+              </View>
+            </Card>
+          </PressableScale>
+        </Animated.View>
+        <Animated.View entering={enterUp(3)}>
+          <PressableScale
             accessibilityLabel="Share with your doctor"
             onPress={() => setShareOpen(true)}
           >
@@ -81,7 +125,7 @@ export default function ProfileScreen() {
             </Card>
           </PressableScale>
         </Animated.View>
-        <Animated.View entering={enterUp(3)}>
+        <Animated.View entering={enterUp(4)}>
           <Card>
             <View style={{ gap: 4 }}>
               <Text variant="label">Your data, your rules</Text>
@@ -92,7 +136,7 @@ export default function ProfileScreen() {
             </View>
           </Card>
         </Animated.View>
-        <Animated.View entering={enterUp(4)} style={{ marginTop: 8, gap: 12 }}>
+        <Animated.View entering={enterUp(5)} style={{ marginTop: 8, gap: 12 }}>
           <Button
             title="Sign out"
             variant="secondary"
@@ -108,6 +152,11 @@ export default function ProfileScreen() {
         </Animated.View>
       </View>
       <ShareSheet visible={shareOpen} onClose={() => setShareOpen(false)} />
+      <HealthSheet
+        visible={healthOpen}
+        onClose={() => setHealthOpen(false)}
+        onChanged={() => void refresh()}
+      />
     </Screen>
   );
 }
