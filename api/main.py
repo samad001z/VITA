@@ -10,12 +10,16 @@ are explicitly scoped to the verified user's id — the API can never write
 one user's data under another user's account.
 """
 
+import datetime as dt
+import hashlib
 import logging
 import os
+import secrets
 from typing import Literal
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from supabase import Client, create_client
 
@@ -85,6 +89,37 @@ class ChatResponse(BaseModel):
     citations: list[Citation]
 
 
+class ShareCreateResponse(BaseModel):
+    share_url: str
+    expires_at: str
+
+
+class ShareRedeemRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=100)
+
+
+class SharedObservationOut(BaseModel):
+    test_name: str
+    value: str
+    unit: str | None
+    reference_range: str | None
+    flagged: bool
+    observed_at: str | None
+
+
+class SharedReportOut(BaseModel):
+    title: str
+    occurred_at: str
+    summary: str | None
+    observations: list[SharedObservationOut]
+
+
+class ShareSnapshot(BaseModel):
+    patient_name: str | None
+    generated_at: str
+    reports: list[SharedReportOut]
+
+
 class ExtractRequest(BaseModel):
     report_id: str
 
@@ -146,6 +181,140 @@ def chat(body: ChatRequest, user_id: str = Depends(_verify_user)) -> ChatRespons
     ]
 
     return ChatResponse(answer=result.answer, citations=citations)
+
+
+SHARE_TTL_MINUTES = 30
+_DOCTOR_PAGE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "doctor-web", "index.html"
+)
+
+
+def _utcnow() -> dt.datetime:
+    return dt.datetime.now(dt.timezone.utc)
+
+
+def _parse_ts(value: str) -> dt.datetime:
+    return dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+@app.post("/share", response_model=ShareCreateResponse)
+def create_share(request: Request, user_id: str = Depends(_verify_user)) -> ShareCreateResponse:
+    """Mint a single-use 30-minute share token. One live share at a time."""
+    db = _service_client()
+    now = _utcnow()
+
+    # Revoke any still-active tokens so a new QR always supersedes old ones.
+    db.table("share_tokens").update({"revoked_at": now.isoformat()}).eq(
+        "user_id", user_id
+    ).is_("used_at", "null").is_("revoked_at", "null").gt(
+        "expires_at", now.isoformat()
+    ).execute()
+
+    # Only the hash is stored; the raw token lives solely in the QR code.
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expires = now + dt.timedelta(minutes=SHARE_TTL_MINUTES)
+    # created_at is set explicitly so the DB's 30-minute TTL check constraint
+    # is evaluated against the same clock that produced expires_at.
+    db.table("share_tokens").insert(
+        {
+            "user_id": user_id,
+            "token_hash": token_hash,
+            "created_at": now.isoformat(),
+            "expires_at": expires.isoformat(),
+            "scope": {"reports": "all"},
+        }
+    ).execute()
+
+    base = str(request.base_url).rstrip("/")
+    return ShareCreateResponse(share_url=f"{base}/share/{token}", expires_at=expires.isoformat())
+
+
+@app.get("/share/{token}")
+def share_page(token: str) -> FileResponse:
+    """Serve the doctor view shell. Redemption only happens via POST, so
+    link-preview bots fetching this URL can't consume the token."""
+    return FileResponse(_DOCTOR_PAGE, media_type="text/html")
+
+
+@app.post("/share/redeem", response_model=ShareSnapshot)
+def redeem_share(body: ShareRedeemRequest) -> ShareSnapshot:
+    """Exchange a raw token for a one-time, read-only snapshot."""
+    db = _service_client()
+    token_hash = hashlib.sha256(body.token.encode()).hexdigest()
+    rows = db.table("share_tokens").select("*").eq("token_hash", token_hash).execute().data
+    if not rows:
+        raise HTTPException(status_code=404, detail="invalid")
+    record = rows[0]
+    now = _utcnow()
+
+    if record["revoked_at"] is not None:
+        raise HTTPException(status_code=410, detail="revoked")
+    if record["used_at"] is not None:
+        raise HTTPException(status_code=410, detail="used")
+    if _parse_ts(record["expires_at"]) <= now:
+        raise HTTPException(status_code=410, detail="expired")
+
+    # Burn the token atomically — the guarded update loses any race.
+    burned = (
+        db.table("share_tokens")
+        .update({"used_at": now.isoformat()})
+        .eq("id", record["id"])
+        .is_("used_at", "null")
+        .execute()
+    )
+    if not burned.data:
+        raise HTTPException(status_code=410, detail="used")
+
+    user_id = record["user_id"]
+    profile_rows = (
+        db.table("profiles").select("full_name").eq("id", user_id).execute().data
+    )
+    events = (
+        db.table("timeline_events")
+        .select("report_id, title, summary, occurred_at")
+        .eq("user_id", user_id)
+        .order("occurred_at", desc=True)
+        .execute()
+    ).data
+    observations = (
+        db.table("extracted_observations")
+        .select("report_id, test_name, value, unit, reference_range, observed_at, flagged")
+        .eq("user_id", user_id)
+        .execute()
+    ).data
+
+    by_report: dict[str, list[dict]] = {}
+    for obs in observations:
+        by_report.setdefault(obs["report_id"], []).append(obs)
+
+    return ShareSnapshot(
+        patient_name=profile_rows[0]["full_name"] if profile_rows else None,
+        generated_at=now.isoformat(),
+        reports=[
+            SharedReportOut(
+                title=event["title"],
+                occurred_at=event["occurred_at"],
+                summary=event["summary"],
+                observations=[
+                    SharedObservationOut(**obs_fields(o))
+                    for o in by_report.get(event["report_id"] or "", [])
+                ],
+            )
+            for event in events
+        ],
+    )
+
+
+def obs_fields(o: dict) -> dict:
+    return {
+        "test_name": o["test_name"],
+        "value": o["value"],
+        "unit": o["unit"],
+        "reference_range": o["reference_range"],
+        "flagged": o["flagged"],
+        "observed_at": o["observed_at"],
+    }
 
 
 @app.post("/extract", response_model=ExtractResponse)

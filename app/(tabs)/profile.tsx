@@ -1,14 +1,17 @@
 import Constants from "expo-constants";
+import { ChevronRight, QrCode } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 
+import { ShareSheet } from "@/components/ShareSheet";
 import { useAuth } from "@/providers/AuthProvider";
-import { Button, Card, colors, enterUp, Screen, Text } from "@/ui";
+import { Button, Card, colors, enterUp, PressableScale, Screen, Text } from "@/ui";
 
 export default function ProfileScreen() {
   const { session, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const email = session?.user.email ?? "—";
   const initial = email.charAt(0).toUpperCase();
@@ -49,6 +52,36 @@ export default function ProfileScreen() {
           </Card>
         </Animated.View>
         <Animated.View entering={enterUp(2)}>
+          <PressableScale
+            accessibilityLabel="Share with your doctor"
+            onPress={() => setShareOpen(true)}
+          >
+            <Card>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: colors.sageSoft,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <QrCode size={20} strokeWidth={1.5} color={colors.sage} />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text variant="label">Share with your doctor</Text>
+                  <Text variant="caption" tone="soft">
+                    One-time QR code, valid 30 minutes
+                  </Text>
+                </View>
+                <ChevronRight size={18} strokeWidth={1.5} color={colors.inkFaint} />
+              </View>
+            </Card>
+          </PressableScale>
+        </Animated.View>
+        <Animated.View entering={enterUp(3)}>
           <Card>
             <View style={{ gap: 4 }}>
               <Text variant="label">Your data, your rules</Text>
@@ -59,7 +92,7 @@ export default function ProfileScreen() {
             </View>
           </Card>
         </Animated.View>
-        <Animated.View entering={enterUp(3)} style={{ marginTop: 8, gap: 12 }}>
+        <Animated.View entering={enterUp(4)} style={{ marginTop: 8, gap: 12 }}>
           <Button
             title="Sign out"
             variant="secondary"
@@ -74,6 +107,7 @@ export default function ProfileScreen() {
           </Text>
         </Animated.View>
       </View>
+      <ShareSheet visible={shareOpen} onClose={() => setShareOpen(false)} />
     </Screen>
   );
 }
