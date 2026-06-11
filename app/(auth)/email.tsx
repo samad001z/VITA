@@ -25,7 +25,9 @@ export default function EmailScreen() {
       options: { shouldCreateUser: true },
     });
     setSending(false);
-    if (otpError !== null) {
+    // Email rate limits shouldn't strand the user here — they may already
+    // have a valid code, so let them through to enter it.
+    if (otpError !== null && !/rate limit|request this after/i.test(otpError.message)) {
       setError(otpError.message);
       return;
     }
@@ -44,7 +46,7 @@ export default function EmailScreen() {
           </Animated.View>
           <Animated.View entering={enterUp(1)} style={{ marginBottom: 8 }}>
             <Text variant="label" tone="soft">
-              We'll send you a six-digit sign-in code. No passwords.
+              We'll send you a sign-in code. No passwords.
             </Text>
           </Animated.View>
           <Animated.View entering={enterUp(2)}>

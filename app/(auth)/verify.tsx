@@ -7,7 +7,8 @@ import Animated from "react-native-reanimated";
 import { supabase } from "@/lib/supabase";
 import { enterUp, OTPInput, PressableScale, Screen, Text } from "@/ui";
 
-const CODE_LENGTH = 6;
+// Supabase is configured to issue 8-digit email OTPs.
+const CODE_LENGTH = 8;
 const RESEND_SECONDS = 60;
 
 export default function VerifyScreen() {
@@ -77,7 +78,7 @@ export default function VerifyScreen() {
               Sent to {typeof email === "string" ? email : "your email"}
             </Text>
           </Animated.View>
-          <OTPInput value={code} onChange={setCode} invalid={error !== null} />
+          <OTPInput length={CODE_LENGTH} value={code} onChange={setCode} invalid={error !== null} />
           <View style={{ minHeight: 24, marginTop: 4 }}>
             {error !== null && (
               <Animated.View entering={enterUp(0)}>
