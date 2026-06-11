@@ -25,7 +25,7 @@ report). Rules:
 """
 
 
-def _wire_schema() -> dict:
+def wire_schema(model: type) -> dict:
     """JSON schema sent to Vertex, with serving-incompatible constraints removed.
 
     Vertex constrained decoding rejects schemas with string length bounds,
@@ -33,7 +33,7 @@ def _wire_schema() -> dict:
     We strip those from the wire schema; the strict Pydantic model still
     enforces every constraint when the response is validated.
     """
-    schema = ExtractionResult.model_json_schema()
+    schema = model.model_json_schema()
 
     def strip(node: object) -> None:
         if isinstance(node, dict):
@@ -71,7 +71,7 @@ def extract_report(file_bytes: bytes, mime_type: str) -> ExtractionResult:
         ],
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
-            response_json_schema=_wire_schema(),
+            response_json_schema=wire_schema(ExtractionResult),
             temperature=0.0,
         ),
     )

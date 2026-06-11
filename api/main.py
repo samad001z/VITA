@@ -12,12 +12,14 @@ one user's data under another user's account.
 
 import logging
 import os
+from typing import Literal
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from supabase import Client, create_client
 
+from chat import answer_question, build_context
 from extraction import extract_report
 from schemas import ExtractionResult
 
@@ -63,6 +65,26 @@ def _verify_user(authorization: str | None = Header(default=None)) -> str:
     return user_response.user.id
 
 
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(min_length=1, max_length=30)
+
+
+class Citation(BaseModel):
+    report_id: str
+    title: str
+    occurred_at: str
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    citations: list[Citation]
+
+
 class ExtractRequest(BaseModel):
     report_id: str
 
@@ -76,6 +98,54 @@ class ExtractResponse(BaseModel):
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/chat", response_model=ChatResponse)
+def chat(body: ChatRequest, user_id: str = Depends(_verify_user)) -> ChatResponse:
+    db = _service_client()
+
+    # 1. Load the user's timeline and observations as grounding context.
+    events = (
+        db.table("timeline_events")
+        .select("report_id, title, summary, occurred_at")
+        .eq("user_id", user_id)
+        .order("occurred_at", desc=True)
+        .limit(40)
+        .execute()
+    ).data
+    observations = (
+        db.table("extracted_observations")
+        .select("report_id, test_name, value, unit, reference_range, observed_at, flagged")
+        .eq("user_id", user_id)
+        .limit(600)
+        .execute()
+    ).data
+
+    by_report: dict[str, list[dict]] = {}
+    for obs in observations:
+        by_report.setdefault(obs["report_id"], []).append(obs)
+    context = build_context(events, by_report)
+
+    # 2. Grounded Gemini turn, Pydantic-validated.
+    try:
+        result = answer_question([m.model_dump() for m in body.messages], context)
+    except Exception as exc:
+        logger.exception("Chat failed for user %s", user_id)
+        raise HTTPException(status_code=502, detail="Chat failed") from exc
+
+    # 3. Only cite reports that really belong to this user's timeline.
+    event_by_report = {e["report_id"]: e for e in events if e["report_id"] is not None}
+    citations = [
+        Citation(
+            report_id=rid,
+            title=event_by_report[rid]["title"],
+            occurred_at=event_by_report[rid]["occurred_at"],
+        )
+        for rid in dict.fromkeys(result.citation_report_ids)
+        if rid in event_by_report
+    ]
+
+    return ChatResponse(answer=result.answer, citations=citations)
 
 
 @app.post("/extract", response_model=ExtractResponse)

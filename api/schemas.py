@@ -59,6 +59,24 @@ class ExtractedObservation(BaseModel):
             return None
 
 
+class ChatAnswer(BaseModel):
+    """Structured output schema enforced on the chat Gemini response."""
+
+    answer: str = Field(
+        min_length=1,
+        max_length=2000,
+        description=(
+            "Plain-language answer grounded ONLY in the provided health records. "
+            "No diagnosis, no treatment advice."
+        ),
+    )
+    citation_report_ids: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="IDs of the reports whose data the answer relies on. Empty if none used.",
+    )
+
+
 class ExtractionResult(BaseModel):
     """Structured output schema enforced on the Gemini response."""
 
