@@ -46,7 +46,7 @@ export default function EmailScreen() {
           </Animated.View>
           <Animated.View entering={enterUp(1)} style={{ marginBottom: 8 }}>
             <Text variant="label" tone="soft">
-              We'll send you a sign-in code. No passwords.
+              We'll send you a six-digit sign-in code. No passwords.
             </Text>
           </Animated.View>
           <Animated.View entering={enterUp(2)}>

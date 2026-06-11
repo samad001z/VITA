@@ -7,8 +7,7 @@ import Animated from "react-native-reanimated";
 import { supabase } from "@/lib/supabase";
 import { enterUp, OTPInput, PressableScale, Screen, Text } from "@/ui";
 
-// Supabase is configured to issue 8-digit email OTPs.
-const CODE_LENGTH = 8;
+const CODE_LENGTH = 6;
 const RESEND_SECONDS = 60;
 
 export default function VerifyScreen() {
