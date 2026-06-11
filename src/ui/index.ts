@@ -8,4 +8,5 @@ export { PressableScale, type PressableScaleProps } from "./PressableScale";
 export { Input, type InputProps } from "./Input";
 export { OTPInput, type OTPInputProps } from "./OTPInput";
 export { Skeleton, type SkeletonProps } from "./Skeleton";
+export { Sheet, SheetProvider, SheetStage, type SheetProps } from "./Sheet";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";

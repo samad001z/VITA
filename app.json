@@ -29,6 +29,13 @@
       "expo-router",
       "expo-font",
       [
+        "expo-image-picker",
+        {
+          "cameraPermission": "VITA uses the camera to photograph medical reports you choose to add.",
+          "photosPermission": "VITA accesses photos you select to add medical reports."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#FAFAF8",

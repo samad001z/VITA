@@ -43,3 +43,11 @@ yarn-error.*
 
 # expo export output
 dist/
+
+# python api
+api/.venv/
+api/.env
+__pycache__/
+
+# supabase cli local state
+supabase/.temp/

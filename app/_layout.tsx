@@ -14,7 +14,7 @@ import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
-import { colors } from "@/ui";
+import { colors, SheetProvider, SheetStage } from "@/ui";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -57,8 +57,12 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <AuthProvider>
-        <StatusBar style="dark" />
-        <RootNavigator />
+        <SheetProvider>
+          <StatusBar style="dark" />
+          <SheetStage>
+            <RootNavigator />
+          </SheetStage>
+        </SheetProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );
