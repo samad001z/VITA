@@ -20,7 +20,7 @@ export type HealthMetric =
   | "hrv"
   | "active_energy";
 export type ReportStatus = "uploaded" | "processing" | "processed" | "failed";
-export type TimelineEventType = "report";
+export type TimelineEventType = "report" | "pattern";
 export type ProfileSex = "female" | "male" | "other" | "undisclosed";
 
 export interface Database {
@@ -146,6 +146,7 @@ export interface Database {
           title: string;
           summary: string | null;
           occurred_at: string;
+          metric: HealthMetric | null;
           created_at: string;
         };
         Insert: {
@@ -156,6 +157,7 @@ export interface Database {
           title: string;
           summary?: string | null;
           occurred_at: string;
+          metric?: HealthMetric | null;
           created_at?: string;
         };
         Update: {
@@ -166,6 +168,7 @@ export interface Database {
           title?: string;
           summary?: string | null;
           occurred_at?: string;
+          metric?: HealthMetric | null;
           created_at?: string;
         };
         Relationships: [];

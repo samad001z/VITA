@@ -1,39 +1,58 @@
 ---
 name: vita-design
-description: Use this skill whenever creating or modifying ANY UI component, screen, animation, or style in the VITA health app. Enforces the "calm clinical luxury" design system, motion language, and component rules. Trigger for all React Native/Expo UI work in this repo.
+description: Use this skill whenever creating or modifying ANY UI component, screen, animation, or style in the VITA health app. Enforces the "Vital Luxe" v2 design system, motion language, and component rules. Trigger for all React Native/Expo UI work in this repo.
 ---
 
-# VITA Design System — Calm Clinical Luxury
+# VITA Design System v2 — Vital Luxe
 
-Aesthetic north star: Apple Health × Linear. Soft depth, generous whitespace,
-clinical trust. Never Material defaults, never template-looking.
+Aesthetic north star: Linear's polish × Apple Health's trust × a premium SaaS
+dashboard. Layered depth, gradient warmth, disciplined accents. Never Material
+defaults, never flat "text on a background", never template-looking.
 
-## Tokens (no values outside these)
-- Colors: bg #FAFAF8 · surface #FFFFFF · ink #1A1A1E · ink-soft rgba(26,26,30,0.55)
-  · primary sage #7C9885 · alert coral #E8826B (alerts ONLY) · hairline rgba(0,0,0,0.06)
-- Dark mode: bg #111114 · surface #1C1C21 · ink #F4F4F2, same accent hues desaturated 10%
-- Type sizes: 13 / 15 / 17 / 22 / 28 / 34 only. Headings tracking -0.2.
-- Radius: 12 / 16 / 24 only. One soft ambient shadow max (opacity ≤ 0.08, radius ≥ 16).
+## Tokens (no values outside src/ui/theme.ts)
+- Canvas: bg #F6F7F3 (warm porcelain) · bgDeep #EDF0E9 · surface #FFFFFF
+  · glass rgba(255,255,255,0.78)
+- Ink: #16181C · soft 0.56 · faint 0.34
+- Sage (brand): #578A6C · bright #7DB18F · deep #33523F · soft 12% fill
+- Forest (dark hero surfaces): #1B2A21 / #26392D with onForest #F2F5F0 inks
+- Gold (premium accent, SPARINGLY — patterns, highlights): #C2974E
+- Coral #E8826B for alerts ONLY. Hairline rgba(22,24,28,0.07).
+- Gradients from theme.gradients only: primary (sage), hero (forest),
+  gold, orbSage/orbGold (ambient background orbs).
+- Type sizes: 13/15/17/22/28/34 only. Headings tracking -0.2.
+- Radius: 14 / 20 / 28. Shadows: ambientShadow (resting) · liftShadow (heroes).
 - Spacing grid: multiples of 4. Screen horizontal padding: 20.
 
-## Motion language (Reanimated 3 — every rule mandatory)
-- Springs only for layout/entrance: damping 18, stiffness 180. No linear timing for movement.
-- Press: scale 0.97 + expo-haptics light impact. Release spring back.
-- Entrances: fade + 12px translateY, list items stagger 40ms apart, max 350ms total.
-- Number changes (vitals, trends) animate with a counting transition, never snap.
-- Sheets: native-feel detents, drag-to-dismiss via gesture-handler, background scales to 0.96.
-- Health metric cards: subtle continuous "alive" indicators (e.g., 1.5s breathing pulse on
-  live heart-rate dot) — ambient, never distracting.
+## Signature moves (what makes it feel expensive)
+- Screens sit on ambient gradient orbs (Screen renders them) — depth without noise.
+- One forest-gradient hero card anchors a screen; everything else stays light.
+- Primary buttons are gradient-filled with a soft lift shadow.
+- Numbers count up (AnimatedNumber), charts draw in (Sparkline), nothing snaps.
+- Gold is reserved for "your body's patterns" moments — it must stay rare.
+
+## Motion language (Reanimated — every rule mandatory)
+- Springs only for layout/entrance: damping 18, stiffness 180. No linear movement.
+- Press: scale 0.97 + light haptic. Release springs back.
+- Entrances: fade + 12px rise, list stagger 40ms, max 350ms total.
+- Number changes animate with a counting transition (AnimatedNumber), never snap.
+- Sparklines draw in via stroke-dashoffset on the house spring timing (≤350ms).
+- Sheets: drag-to-dismiss, background stage scales to 0.96.
+- Live metrics get ambient "alive" indicators (1.5s breathing pulse) — never distracting.
 
 ## Component rules
-- Compose ONLY from primitives in src/ui (Screen, Card, Text, Button, Sheet, MetricTile).
-  If a primitive is missing, create it in src/ui first, then use it.
-- Every screen ships with designed empty state, skeleton loading state, and error state.
-- Charts: custom react-native-skia or victory-native, hairline grid, no chart-library default theme.
-- Icons: lucide-react-native, 1.5px stroke weight, ink-soft color.
-- Accessibility: minimum touch target 44pt, dynamic type respected, labels on all icons.
+- Compose ONLY from primitives in src/ui (Screen, Card, Text, Button, Sheet,
+  Toggle, MetricTile, AnimatedNumber, Sparkline, SectionHeader, Skeleton,
+  EmptyState, PressableScale, Input, OTPInput). Missing primitive → create it
+  in src/ui first, then use it.
+- Card variants: "surface" (default, white + ambientShadow) and "hero"
+  (forest gradient + liftShadow + onForest inks).
+- Every screen ships designed empty, skeleton-loading, and error states.
+- Charts: custom-drawn (react-native-svg or skia) — hairline grid, no chart-library theme.
+- Icons: lucide-react-native, 1.5px stroke, ink-soft (or onForestSoft on heroes).
+- Accessibility: 44pt touch targets, dynamic type, labels on all icons.
 
 ## Forbidden
-- Default Alert.alert for anything user-facing (use custom Sheet)
-- Pure black #000, pure red, harsh shadows, more than 2 typefaces
+- Default Alert.alert for anything user-facing (use Sheet)
+- Pure black #000, pure red, harsh/stacked shadows, more than 2 typefaces
+- Gold on more than one element per screen; coral for anything but alerts
 - Any animation > 350ms, any unanimated mount, any `any` type

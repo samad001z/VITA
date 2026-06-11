@@ -3,7 +3,16 @@ import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from "r
 import { colors, fontStyle, typeScale } from "./theme";
 
 export type TextVariant = "display" | "title" | "heading" | "body" | "label" | "caption";
-export type TextTone = "ink" | "soft" | "faint" | "sage" | "coral" | "onSage";
+export type TextTone =
+  | "ink"
+  | "soft"
+  | "faint"
+  | "sage"
+  | "gold"
+  | "coral"
+  | "onSage"
+  | "onForest"
+  | "onForestSoft";
 
 const variantStyles: Record<TextVariant, TextStyle> = {
   display: {
@@ -46,8 +55,11 @@ const toneColors: Record<TextTone, string> = {
   soft: colors.inkSoft,
   faint: colors.inkFaint,
   sage: colors.sage,
+  gold: colors.gold,
   coral: colors.coral,
   onSage: colors.onSage,
+  onForest: colors.onForest,
+  onForestSoft: colors.onForestSoft,
 };
 
 export interface TextProps extends RNTextProps {

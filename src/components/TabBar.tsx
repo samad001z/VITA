@@ -14,7 +14,7 @@ const TAB_BAR_HEIGHT = 64;
 const INDICATOR_INSET = 8;
 
 const tabConfig: Record<string, { icon: LucideIcon; label: string }> = {
-  index: { icon: HeartPulse, label: "Timeline" },
+  index: { icon: HeartPulse, label: "Home" },
   chat: { icon: MessageCircle, label: "Chat" },
   profile: { icon: UserRound, label: "You" },
 };

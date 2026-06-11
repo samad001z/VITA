@@ -30,6 +30,9 @@ Rules — all of them are hard requirements:
   Use the exact ids from the records. If you used none, return an empty list.
 - If asked something unrelated to the user's health records, politely steer
   back to their health data.
+- WEARABLE DATA and PATTERN entries are the user's own daily summaries and
+  baselines. Compare only against their personal baseline — never population
+  averages — and use them to answer "why do I feel…" questions factually.
 
 The user's health records:
 
@@ -37,17 +40,66 @@ The user's health records:
 
 _NO_RECORDS = "No reports on file yet."
 
+_METRIC_LABELS = {
+    "heart_rate": ("Heart rate", "bpm"),
+    "sleep_minutes": ("Sleep", "min/night"),
+    "steps": ("Steps", "steps/day"),
+    "spo2": ("Blood oxygen", "%"),
+    "hrv": ("Heart rate variability", "ms"),
+    "active_energy": ("Active energy", "kcal/day"),
+}
+
+
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2 == 1:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2
+
+
+def build_wearables_block(rollups: list[dict]) -> str:
+    """Summarize daily rollups as personal baselines for chat grounding."""
+    if not rollups:
+        return ""
+    by_metric: dict[str, list[dict]] = {}
+    for row in rollups:
+        by_metric.setdefault(row["metric"], []).append(row)
+
+    lines = ["WEARABLE DATA (the user's own daily averages — never population norms):"]
+    for metric, rows in by_metric.items():
+        label, unit = _METRIC_LABELS.get(metric, (metric, ""))
+        rows.sort(key=lambda r: r["day"])
+        values = [float(r["value"]) for r in rows]
+        latest = rows[-1]
+        recent = values[-7:]
+        recent_avg = sum(recent) / len(recent)
+        baseline = _median(values[:-7]) if len(values) > 10 else None
+        line = (
+            f"- {label}: latest {latest['value']:.0f} {unit} ({latest['day']}), "
+            f"7-day avg {recent_avg:.0f}"
+        )
+        if baseline is not None:
+            line += f", 30-day personal baseline {baseline:.0f}"
+        lines.append(line)
+    return "\n".join(lines)
+
 
 def build_context(
     events: list[dict],
     observations_by_report: dict[str, list[dict]],
+    rollups: list[dict] | None = None,
 ) -> str:
-    """Render the user's timeline as a compact grounding document."""
-    if not events:
-        return _NO_RECORDS
+    """Render the user's timeline + wearable baselines as grounding."""
     blocks: list[str] = []
     for event in events:
         report_id = event.get("report_id")
+        if event.get("event_type") == "pattern":
+            blocks.append(
+                f'PATTERN detected={event["occurred_at"]} "{event["title"]}"'
+                + (f"\n  {event['summary']}" if event.get("summary") else "")
+            )
+            continue
         lines = [
             f'REPORT id={report_id} "{event["title"]}" date={event["occurred_at"]}',
         ]
@@ -60,6 +112,12 @@ def build_context(
             date = f" [{obs['observed_at']}]" if obs.get("observed_at") else ""
             lines.append(f"  - {obs['test_name']}: {obs['value']}{unit}{ref}{flag}{date}")
         blocks.append("\n".join(lines))
+
+    wearables = build_wearables_block(rollups or [])
+    if wearables:
+        blocks.append(wearables)
+    if not blocks:
+        return _NO_RECORDS
     return "\n\n".join(blocks)
 
 

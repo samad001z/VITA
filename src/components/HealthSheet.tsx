@@ -1,16 +1,7 @@
-import {
-  Activity,
-  Droplets,
-  Flame,
-  Footprints,
-  HeartPulse,
-  MoonStar,
-  Waves,
-  type LucideIcon,
-} from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 
+import { METRIC_ICONS } from "@/components/metricIcons";
 import { registerHealthSyncTask, unregisterHealthSyncTask } from "@/lib/health/backgroundTask";
 import { getHealthProvider } from "@/lib/health/provider";
 import { getEnabledMetrics, setEnabledMetrics } from "@/lib/health/settings";
@@ -23,15 +14,6 @@ export interface HealthSheetProps {
   /** Called after permissions change so callers can re-sync. */
   onChanged: () => void;
 }
-
-const METRIC_ICONS: Record<HealthMetric, LucideIcon> = {
-  heart_rate: HeartPulse,
-  sleep_minutes: MoonStar,
-  steps: Footprints,
-  spo2: Droplets,
-  hrv: Waves,
-  active_energy: Flame,
-};
 
 /**
  * Calm consent: each metric is individually toggleable, with a plain-language

@@ -11,3 +11,7 @@ export { Skeleton, type SkeletonProps } from "./Skeleton";
 export { Sheet, SheetProvider, SheetStage, type SheetProps } from "./Sheet";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { Toggle, type ToggleProps } from "./Toggle";
+export { AnimatedNumber, type AnimatedNumberProps } from "./AnimatedNumber";
+export { Sparkline, type SparklineProps } from "./Sparkline";
+export { SectionHeader, type SectionHeaderProps } from "./SectionHeader";
+export { MetricTile, type MetricTileProps } from "./MetricTile";

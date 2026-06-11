@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 
+import { detectAndRecordPatterns } from "./patterns";
 import { getHealthProvider } from "./provider";
 import { getEnabledMetrics, setLastSyncAt } from "./settings";
 
@@ -43,5 +44,12 @@ export async function syncHealthData(): Promise<number> {
   if (error !== null) throw new Error(error.message);
 
   await setLastSyncAt(new Date().toISOString());
+
+  try {
+    await detectAndRecordPatterns();
+  } catch {
+    // Pattern detection is additive — a failure must never break the sync.
+  }
+
   return rows.length;
 }

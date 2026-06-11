@@ -5,8 +5,10 @@ import { View } from "react-native";
 import Animated from "react-native-reanimated";
 
 import { AddReportSheet } from "@/components/AddReportSheet";
+import { METRIC_ICONS } from "@/components/metricIcons";
 import { ReportCard } from "@/components/ReportCard";
 import { TimelineEventCard } from "@/components/TimelineEventCard";
+import { type MetricInsight, useInsights } from "@/hooks/useInsights";
 import { useTimeline } from "@/hooks/useTimeline";
 import { type ReportRow, type TimelineEventRow } from "@/lib/database.types";
 import { type PickedFile, requestExtraction, uploadReport } from "@/lib/reports";
@@ -16,8 +18,10 @@ import {
   colors,
   EmptyState,
   enterUp,
+  MetricTile,
   PressableScale,
   Screen,
+  SectionHeader,
   Skeleton,
   Text,
 } from "@/ui";
@@ -37,6 +41,14 @@ function monthLabel(iso: string): string {
   return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 5) return "Good night";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 /** Flatten events into month headers + rail-aware event rows. */
 function buildItems(events: TimelineEventRow[]): TimelineItem[] {
   const items: TimelineItem[] = [];
@@ -49,7 +61,6 @@ function buildItems(events: TimelineEventRow[]): TimelineItem[] {
     }
     items.push({ kind: "event", key: event.id, event, railTop: true, railBottom: true });
   }
-  // Trim the rail where a month group starts or ends.
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (item === undefined || item.kind !== "event") continue;
@@ -61,8 +72,23 @@ function buildItems(events: TimelineEventRow[]): TimelineItem[] {
   return items;
 }
 
-export default function TimelineScreen() {
+function metricDecimals(insight: MetricInsight): number {
+  return insight.metric === "spo2" ? 1 : 0;
+}
+
+function metricFormat(insight: MetricInsight): ((n: number) => string) | undefined {
+  if (insight.metric === "sleep_minutes") {
+    return (n) => `${Math.floor(n / 60)}h ${Math.round(n % 60)}m`;
+  }
+  if (insight.metric === "steps" || insight.metric === "active_energy") {
+    return (n) => Math.round(n).toLocaleString();
+  }
+  return undefined;
+}
+
+export default function HomeScreen() {
   const { events, pending, stats, error, refresh } = useTimeline();
+  const { insights, refresh: refreshInsights } = useInsights();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -78,7 +104,7 @@ export default function TimelineScreen() {
       } catch {
         // API offline — report stays queued with a retry affordance.
       }
-      await refresh();
+      await Promise.all([refresh(), refreshInsights()]);
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -90,7 +116,11 @@ export default function TimelineScreen() {
 
   const loading = events === null || pending === null;
   const hasAnything =
-    !loading && (events.length > 0 || pending.length > 0 || uploading);
+    !loading &&
+    (events.length > 0 || pending.length > 0 || uploading || (insights?.length ?? 0) > 0);
+
+  const reportCount = events?.filter((e) => e.event_type === "report").length ?? 0;
+  const metricCount = insights?.length ?? 0;
 
   return (
     <Screen tabbed animated={false}>
@@ -104,7 +134,7 @@ export default function TimelineScreen() {
           paddingBottom: 12,
         }}
       >
-        <Text variant="title">Timeline</Text>
+        <Text variant="title">VITA</Text>
         {hasAnything && (
           <PressableScale
             accessibilityLabel="Add a report"
@@ -136,13 +166,16 @@ export default function TimelineScreen() {
       {error !== null ? (
         <EmptyState
           icon={<CloudOff size={32} strokeWidth={1.5} color={colors.coral} />}
-          title="Couldn't load your timeline"
+          title="Couldn't load your health home"
           body="Check your connection and try again — your data is safe."
           action={<Button title="Try again" variant="secondary" onPress={() => void refresh()} />}
         />
       ) : loading ? (
         <View style={{ gap: 12 }}>
-          {[0, 1, 2].map((i) => (
+          <Animated.View entering={enterUp(0)}>
+            <Skeleton width="100%" height={120} rounded="md" />
+          </Animated.View>
+          {[1, 2].map((i) => (
             <Animated.View key={i} entering={enterUp(i)}>
               <Card>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
@@ -171,13 +204,20 @@ export default function TimelineScreen() {
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           ListHeaderComponent={
-            <PendingStrip pending={pending} uploading={uploading} onChanged={() => void refresh()} />
+            <HomeHeader
+              insights={insights}
+              reportCount={reportCount}
+              metricCount={metricCount}
+              pending={pending}
+              uploading={uploading}
+              onChanged={() => void refresh()}
+            />
           }
           renderItem={({ item, index }: { item: TimelineItem; index: number }) =>
             item.kind === "month" ? (
               <Animated.View
                 entering={enterUp(Math.min(index, 6))}
-                style={{ paddingTop: index === 0 ? 0 : 8, paddingBottom: 2 }}
+                style={{ paddingTop: 8, paddingBottom: 2 }}
               >
                 <Text
                   variant="caption"
@@ -210,6 +250,90 @@ export default function TimelineScreen() {
   );
 }
 
+interface HomeHeaderProps {
+  insights: MetricInsight[] | null;
+  reportCount: number;
+  metricCount: number;
+  pending: ReportRow[];
+  uploading: boolean;
+  onChanged: () => void;
+}
+
+function HomeHeader({
+  insights,
+  reportCount,
+  metricCount,
+  pending,
+  uploading,
+  onChanged,
+}: HomeHeaderProps) {
+  const rows = useMemo(() => {
+    const list = insights ?? [];
+    const chunked: MetricInsight[][] = [];
+    for (let i = 0; i < list.length; i += 2) {
+      chunked.push(list.slice(i, i + 2));
+    }
+    return chunked;
+  }, [insights]);
+
+  return (
+    <View style={{ gap: 12, marginBottom: 8 }}>
+      <Animated.View entering={enterUp(0)}>
+        <Card variant="hero">
+          <View style={{ gap: 6 }}>
+            <Text variant="caption" tone="onForestSoft">
+              {greeting()}
+            </Text>
+            <Text variant="heading" tone="onForest">
+              Your body, in rhythm
+            </Text>
+            <Text variant="caption" tone="onForestSoft" style={{ marginTop: 2 }}>
+              {reportCount} report{reportCount === 1 ? "" : "s"} on your timeline
+              {metricCount > 0 ? ` · ${metricCount} metrics learning your normal` : ""}
+            </Text>
+          </View>
+        </Card>
+      </Animated.View>
+
+      {rows.length > 0 && (
+        <>
+          <SectionHeader title="Your normal" />
+          {rows.map((row, rowIndex) => (
+            <Animated.View
+              key={row[0]?.metric ?? rowIndex}
+              entering={enterUp(rowIndex + 1)}
+              style={{ flexDirection: "row", gap: 12 }}
+            >
+              {row.map((insight) => {
+                const Icon = METRIC_ICONS[insight.metric];
+                return (
+                  <MetricTile
+                    key={insight.metric}
+                    icon={<Icon size={15} strokeWidth={1.5} color={colors.sage} />}
+                    label={insight.label}
+                    value={insight.latest}
+                    unit={insight.metric === "sleep_minutes" ? "" : insight.unit}
+                    decimals={metricDecimals(insight)}
+                    format={metricFormat(insight)}
+                    series={insight.series}
+                    delta={insight.delta ?? undefined}
+                    deltaTone={insight.deltaTone}
+                    live={insight.metric === "heart_rate"}
+                  />
+                );
+              })}
+              {row.length === 1 && <View style={{ flex: 1 }} />}
+            </Animated.View>
+          ))}
+        </>
+      )}
+
+      <PendingStrip pending={pending} uploading={uploading} onChanged={onChanged} />
+      <SectionHeader title="Timeline" />
+    </View>
+  );
+}
+
 interface PendingStripProps {
   pending: ReportRow[];
   uploading: boolean;
@@ -220,7 +344,7 @@ interface PendingStripProps {
 function PendingStrip({ pending, uploading, onChanged }: PendingStripProps) {
   if (!uploading && pending.length === 0) return null;
   return (
-    <View style={{ gap: 12, marginBottom: 20 }}>
+    <View style={{ gap: 12, marginTop: 4 }}>
       {uploading && (
         <Animated.View entering={enterUp(0)}>
           <Card>

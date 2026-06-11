@@ -140,9 +140,11 @@ def chat(body: ChatRequest, user_id: str = Depends(_verify_user)) -> ChatRespons
     db = _service_client()
 
     # 1. Load the user's timeline and observations as grounding context.
+    # select("*") keeps this working whether or not the Phase 8 migration
+    # (metric column) has been applied yet.
     events = (
         db.table("timeline_events")
-        .select("report_id, title, summary, occurred_at")
+        .select("*")
         .eq("user_id", user_id)
         .order("occurred_at", desc=True)
         .limit(40)
@@ -155,11 +157,22 @@ def chat(body: ChatRequest, user_id: str = Depends(_verify_user)) -> ChatRespons
         .limit(600)
         .execute()
     ).data
+    try:
+        rollups = (
+            db.table("metric_daily_rollups")
+            .select("metric, day, value, unit")
+            .eq("user_id", user_id)
+            .order("day", desc=True)
+            .limit(220)
+            .execute()
+        ).data
+    except Exception:  # table absent until the Phase 7 migration is pushed
+        rollups = []
 
     by_report: dict[str, list[dict]] = {}
     for obs in observations:
         by_report.setdefault(obs["report_id"], []).append(obs)
-    context = build_context(events, by_report)
+    context = build_context(events, by_report, rollups)
 
     # 2. Grounded Gemini turn, Pydantic-validated.
     try:
