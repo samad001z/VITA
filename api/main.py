@@ -23,6 +23,13 @@ from schemas import ExtractionResult
 
 load_dotenv()
 
+# Allow GOOGLE_APPLICATION_CREDENTIALS to be relative to this directory.
+_creds = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+if _creds and not os.path.isabs(_creds):
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), _creds
+    )
+
 logger = logging.getLogger("vita.api")
 logging.basicConfig(level=logging.INFO)
 

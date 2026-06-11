@@ -49,5 +49,9 @@ api/.venv/
 api/.env
 __pycache__/
 
+# google service account credentials — never commit
+sa-vertex.json
+api/sa-vertex.json
+
 # supabase cli local state
 supabase/.temp/
