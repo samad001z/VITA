@@ -1,13 +1,14 @@
 import { FlashList } from "@shopify/flash-list";
 import { CloudOff, FileHeart, Plus } from "lucide-react-native";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 
 import { AddReportSheet } from "@/components/AddReportSheet";
 import { ReportCard } from "@/components/ReportCard";
-import { useReports } from "@/hooks/useReports";
-import { type ReportRow } from "@/lib/database.types";
+import { TimelineEventCard } from "@/components/TimelineEventCard";
+import { useTimeline } from "@/hooks/useTimeline";
+import { type ReportRow, type TimelineEventRow } from "@/lib/database.types";
 import { type PickedFile, requestExtraction, uploadReport } from "@/lib/reports";
 import {
   Button,
@@ -21,8 +22,47 @@ import {
   Text,
 } from "@/ui";
 
+type TimelineItem =
+  | { kind: "month"; key: string; label: string }
+  | {
+      kind: "event";
+      key: string;
+      event: TimelineEventRow;
+      railTop: boolean;
+      railBottom: boolean;
+    };
+
+function monthLabel(iso: string): string {
+  const date = new Date(`${iso}T00:00:00`);
+  return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
+/** Flatten events into month headers + rail-aware event rows. */
+function buildItems(events: TimelineEventRow[]): TimelineItem[] {
+  const items: TimelineItem[] = [];
+  let currentMonth = "";
+  for (const event of events) {
+    const month = event.occurred_at.slice(0, 7);
+    if (month !== currentMonth) {
+      currentMonth = month;
+      items.push({ kind: "month", key: `month-${month}`, label: monthLabel(event.occurred_at) });
+    }
+    items.push({ kind: "event", key: event.id, event, railTop: true, railBottom: true });
+  }
+  // Trim the rail where a month group starts or ends.
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item === undefined || item.kind !== "event") continue;
+    const prev = items[i - 1];
+    const next = items[i + 1];
+    if (prev === undefined || prev.kind === "month") item.railTop = false;
+    if (next === undefined || next.kind === "month") item.railBottom = false;
+  }
+  return items;
+}
+
 export default function TimelineScreen() {
-  const { reports, observationCounts, error, refresh } = useReports();
+  const { events, pending, stats, error, refresh } = useTimeline();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -46,7 +86,11 @@ export default function TimelineScreen() {
     }
   };
 
-  const hasReports = reports !== null && reports.length > 0;
+  const items = useMemo(() => (events === null ? [] : buildItems(events)), [events]);
+
+  const loading = events === null || pending === null;
+  const hasAnything =
+    !loading && (events.length > 0 || pending.length > 0 || uploading);
 
   return (
     <Screen tabbed animated={false}>
@@ -61,7 +105,7 @@ export default function TimelineScreen() {
         }}
       >
         <Text variant="title">Timeline</Text>
-        {hasReports && (
+        {hasAnything && (
           <PressableScale
             accessibilityLabel="Add a report"
             onPress={() => setSheetOpen(true)}
@@ -92,11 +136,11 @@ export default function TimelineScreen() {
       {error !== null ? (
         <EmptyState
           icon={<CloudOff size={32} strokeWidth={1.5} color={colors.coral} />}
-          title="Couldn't load your reports"
+          title="Couldn't load your timeline"
           body="Check your connection and try again — your data is safe."
           action={<Button title="Try again" variant="secondary" onPress={() => void refresh()} />}
         />
-      ) : reports === null ? (
+      ) : loading ? (
         <View style={{ gap: 12 }}>
           {[0, 1, 2].map((i) => (
             <Animated.View key={i} entering={enterUp(i)}>
@@ -112,7 +156,7 @@ export default function TimelineScreen() {
             </Animated.View>
           ))}
         </View>
-      ) : !hasReports && !uploading ? (
+      ) : !hasAnything ? (
         <EmptyState
           icon={<FileHeart size={32} strokeWidth={1.5} color={colors.sage} />}
           title="Your health story starts here"
@@ -121,36 +165,39 @@ export default function TimelineScreen() {
         />
       ) : (
         <FlashList
-          data={reports}
-          keyExtractor={(item: ReportRow) => item.id}
+          data={items}
+          keyExtractor={(item: TimelineItem) => item.key}
+          getItemType={(item: TimelineItem) => item.kind}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           ListHeaderComponent={
-            uploading ? (
-              <Animated.View entering={enterUp(0)} style={{ marginBottom: 12 }}>
-                <Card>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                    <Skeleton width={44} height={44} rounded="lg" />
-                    <View style={{ flex: 1, gap: 8 }}>
-                      <Skeleton width="48%" height={14} />
-                      <Text variant="caption" tone="soft">
-                        Uploading…
-                      </Text>
-                    </View>
-                  </View>
-                </Card>
-              </Animated.View>
-            ) : null
+            <PendingStrip pending={pending} uploading={uploading} onChanged={() => void refresh()} />
           }
-          renderItem={({ item, index }: { item: ReportRow; index: number }) => (
-            <Animated.View entering={enterUp(Math.min(index, 6))}>
-              <ReportCard
-                report={item}
-                observationCount={observationCounts[item.id] ?? 0}
-                onChanged={() => void refresh()}
-              />
-            </Animated.View>
-          )}
+          renderItem={({ item, index }: { item: TimelineItem; index: number }) =>
+            item.kind === "month" ? (
+              <Animated.View
+                entering={enterUp(Math.min(index, 6))}
+                style={{ paddingTop: index === 0 ? 0 : 8, paddingBottom: 2 }}
+              >
+                <Text
+                  variant="caption"
+                  tone="faint"
+                  style={{ textTransform: "uppercase", letterSpacing: 0.8 }}
+                >
+                  {item.label}
+                </Text>
+              </Animated.View>
+            ) : (
+              <Animated.View entering={enterUp(Math.min(index, 6))}>
+                <TimelineEventCard
+                  event={item.event}
+                  stats={item.event.report_id !== null ? stats[item.event.report_id] : undefined}
+                  railTop={item.railTop}
+                  railBottom={item.railBottom}
+                />
+              </Animated.View>
+            )
+          }
         />
       )}
 
@@ -160,5 +207,40 @@ export default function TimelineScreen() {
         onPicked={(file) => void handlePicked(file)}
       />
     </Screen>
+  );
+}
+
+interface PendingStripProps {
+  pending: ReportRow[];
+  uploading: boolean;
+  onChanged: () => void;
+}
+
+/** Reports that haven't reached the timeline yet: uploading, queued, failed. */
+function PendingStrip({ pending, uploading, onChanged }: PendingStripProps) {
+  if (!uploading && pending.length === 0) return null;
+  return (
+    <View style={{ gap: 12, marginBottom: 20 }}>
+      {uploading && (
+        <Animated.View entering={enterUp(0)}>
+          <Card>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <Skeleton width={44} height={44} rounded="lg" />
+              <View style={{ flex: 1, gap: 8 }}>
+                <Skeleton width="48%" height={14} />
+                <Text variant="caption" tone="soft">
+                  Uploading…
+                </Text>
+              </View>
+            </View>
+          </Card>
+        </Animated.View>
+      )}
+      {pending.map((report, i) => (
+        <Animated.View key={report.id} entering={enterUp(Math.min(i, 6))}>
+          <ReportCard report={report} observationCount={0} onChanged={onChanged} />
+        </Animated.View>
+      ))}
+    </View>
   );
 }
