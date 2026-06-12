@@ -27,6 +27,8 @@ const en = {
     tagline: "Your health story,\nbeautifully kept.",
     body: "Upload medical reports, see your history as a living timeline, and share it safely when it matters.",
     cta: "Continue with email",
+    google: "Continue with Google",
+    googleError: "Google sign-in didn't complete. Try again or use email.",
     privacy: "Private by design. Your data is yours alone.",
   },
   auth: {

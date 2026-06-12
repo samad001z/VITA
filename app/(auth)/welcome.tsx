@@ -1,16 +1,37 @@
 import { useRouter } from "expo-router";
 import { HeartPulse } from "lucide-react-native";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 
 import { LanguagePicker } from "@/components/LanguagePicker";
+import { googleSignInAvailable, signInWithGoogle } from "@/lib/googleAuth";
+import { error as errorHaptic } from "@/lib/haptics";
 import { Bloom, Button, enterUp, Screen, Text, useTheme } from "@/ui";
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const hasGoogle = googleSignInAvailable();
+
+  const continueWithGoogle = async (): Promise<void> => {
+    if (googleBusy) return;
+    setGoogleBusy(true);
+    setGoogleError(null);
+    try {
+      // On success the Supabase session lands and (auth)/_layout redirects.
+      await signInWithGoogle();
+    } catch {
+      errorHaptic();
+      setGoogleError(t("welcome.googleError"));
+    } finally {
+      setGoogleBusy(false);
+    }
+  };
 
   return (
     <Screen animated={false}>
@@ -47,7 +68,30 @@ export default function WelcomeScreen() {
       </View>
       <Animated.View entering={enterUp(4)} style={{ gap: 12 }}>
         <LanguagePicker />
-        <Button title={t("welcome.cta")} onPress={() => router.push("/(auth)/email")} />
+        {googleError !== null && (
+          <Text variant="caption" tone="coral" style={{ textAlign: "center" }}>
+            {googleError}
+          </Text>
+        )}
+        {hasGoogle ? (
+          <>
+            <Button
+              title={t("welcome.google")}
+              onPress={() => void continueWithGoogle()}
+              loading={googleBusy}
+              accessibilityLabel={t("welcome.google")}
+            />
+            <Button
+              title={t("welcome.cta")}
+              variant="secondary"
+              onPress={() => router.push("/(auth)/email")}
+              disabled={googleBusy}
+              accessibilityLabel={t("welcome.cta")}
+            />
+          </>
+        ) : (
+          <Button title={t("welcome.cta")} onPress={() => router.push("/(auth)/email")} />
+        )}
         <Text variant="caption" tone="faint" style={{ textAlign: "center" }}>
           {t("welcome.privacy")}
         </Text>
