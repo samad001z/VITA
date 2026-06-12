@@ -2,6 +2,7 @@ import { Pressable } from "react-native";
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
+  useDerivedValue,
   withSpring,
 } from "react-native-reanimated";
 
@@ -26,12 +27,13 @@ const INSET = 3;
 export function Toggle({ value, onChange, accessibilityLabel, disabled = false }: ToggleProps) {
   const { colors } = useTheme();
 
+  // interpolateColor needs a NUMBER for progress. Feeding it the animation
+  // object from withSpring directly yields rgba(NaN…), which Reanimated 4
+  // treats as a fatal error in release builds.
+  const progress = useDerivedValue(() => withSpring(value ? 1 : 0, SPRING), [value]);
+
   const trackStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      withSpring(value ? 1 : 0, SPRING),
-      [0, 1],
-      [colors.fill, colors.sage],
-    ),
+    backgroundColor: interpolateColor(progress.value, [0, 1], [colors.fill, colors.sage]),
   }));
 
   const thumbStyle = useAnimatedStyle(() => ({
