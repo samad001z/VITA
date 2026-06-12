@@ -67,6 +67,14 @@
         {
           "microphonePermission": "VITA uses the microphone so you can ask about your health by voice."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
       ]
     ]
   }
