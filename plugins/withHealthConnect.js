@@ -3,10 +3,33 @@
  * Adds the permission-rationale intent filters Health Connect requires:
  * - MainActivity handles ACTION_SHOW_PERMISSIONS_RATIONALE
  * - ViewPermissionUsageActivity alias for Android 14+ privacy dashboard
+ * And registers the permission delegate in MainActivity.onCreate —
+ * react-native-health-connect's requestPermission() hard-crashes
+ * (uninitialized lateinit launcher) without it.
  */
-const { withAndroidManifest } = require("@expo/config-plugins");
+const { withAndroidManifest, withMainActivity } = require("@expo/config-plugins");
+
+const DELEGATE_IMPORT =
+  "import dev.matinzd.healthconnect.permissions.HealthConnectPermissionDelegate";
+const DELEGATE_CALL = "HealthConnectPermissionDelegate.setPermissionDelegate(this)";
+
+function withHealthConnectDelegate(config) {
+  return withMainActivity(config, (mod) => {
+    let src = mod.modResults.contents;
+    if (!src.includes(DELEGATE_IMPORT)) {
+      src = src.replace(/^(package [\w.]+)$/m, `$1\n${DELEGATE_IMPORT}`);
+    }
+    if (!src.includes(DELEGATE_CALL)) {
+      // The launcher must be registered before the activity is started.
+      src = src.replace(/(super\.onCreate\(null\))/, `$1\n    ${DELEGATE_CALL}`);
+    }
+    mod.modResults.contents = src;
+    return mod;
+  });
+}
 
 module.exports = function withHealthConnect(config) {
+  config = withHealthConnectDelegate(config);
   return withAndroidManifest(config, (mod) => {
     const application = mod.modResults.manifest.application?.[0];
     if (!application) return mod;
