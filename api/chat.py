@@ -100,6 +100,12 @@ def build_context(
                 + (f"\n  {event['summary']}" if event.get("summary") else "")
             )
             continue
+        if event.get("event_type") == "symptom":
+            blocks.append(
+                f'SYMPTOM logged={event["occurred_at"]} "{event["title"]}"'
+                + (f"\n  note: {event['summary']}" if event.get("summary") else "")
+            )
+            continue
         lines = [
             f'REPORT id={report_id} "{event["title"]}" date={event["occurred_at"]}',
         ]

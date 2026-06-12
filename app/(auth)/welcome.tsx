@@ -3,10 +3,11 @@ import { HeartPulse } from "lucide-react-native";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 
-import { Button, colors, enterUp, Screen, Text } from "@/ui";
+import { Bloom, Button, enterUp, Screen, Text, useTheme } from "@/ui";
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   return (
     <Screen animated={false}>
@@ -14,16 +15,18 @@ export default function WelcomeScreen() {
         <Animated.View
           entering={enterUp(0)}
           style={{
-            width: 84,
-            height: 84,
-            borderRadius: 42,
-            backgroundColor: colors.sageSoft,
+            width: 132,
+            height: 132,
+            marginLeft: -16,
+            marginBottom: 4,
             alignItems: "center",
             justifyContent: "center",
-            marginBottom: 8,
           }}
         >
-          <HeartPulse size={40} strokeWidth={1.5} color={colors.sage} />
+          <Bloom size={132} />
+          <View style={{ position: "absolute" }}>
+            <HeartPulse size={36} strokeWidth={1.5} color={colors.sage} />
+          </View>
         </Animated.View>
         <Animated.View entering={enterUp(1)}>
           <Text variant="display">VITA</Text>

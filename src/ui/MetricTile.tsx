@@ -13,7 +13,7 @@ import { AnimatedNumber } from "./AnimatedNumber";
 import { Card } from "./Card";
 import { Sparkline } from "./Sparkline";
 import { Text } from "./Text";
-import { colors } from "./theme";
+import { useTheme } from "./ThemeContext";
 
 export interface MetricTileProps {
   icon: React.ReactNode;
@@ -32,6 +32,7 @@ export interface MetricTileProps {
 }
 
 function LiveDot() {
+  const { colors } = useTheme();
   const opacity = useSharedValue(0.35);
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export function MetricTile({
   live = false,
   format,
 }: MetricTileProps) {
+  const { colors } = useTheme();
   return (
     <Card style={{ flex: 1 }}>
       <View style={{ gap: 10 }}>

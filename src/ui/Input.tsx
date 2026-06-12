@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { TextInput, type TextInputProps, type TextStyle } from "react-native";
 
-import { colors, fontStyle, radius, typeScale } from "./theme";
+import { fontStyle, radius, typeScale } from "./theme";
+import { useTheme } from "./ThemeContext";
 
 export interface InputProps extends TextInputProps {
   invalid?: boolean;
@@ -12,6 +13,7 @@ export interface InputProps extends TextInputProps {
  * sage focus ring, coral when invalid.
  */
 export function Input({ invalid = false, style, onFocus, onBlur, ...rest }: InputProps) {
+  const { colors } = useTheme();
   const [focused, setFocused] = useState(false);
 
   const borderColor = invalid ? colors.coral : focused ? colors.sage : colors.hairline;

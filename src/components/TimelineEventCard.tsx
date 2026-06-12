@@ -1,10 +1,10 @@
 import { useRouter } from "expo-router";
-import { Activity } from "lucide-react-native";
+import { Activity, MessageSquareHeart } from "lucide-react-native";
 import { View } from "react-native";
 
 import { type ObservationStats } from "@/hooks/useTimeline";
 import { type TimelineEventRow } from "@/lib/database.types";
-import { Card, colors, PressableScale, Text } from "@/ui";
+import { Card, PressableScale, Text, useTheme } from "@/ui";
 
 export interface TimelineEventCardProps {
   event: TimelineEventRow;
@@ -26,7 +26,7 @@ export function formatEventDate(iso: string): string {
 /**
  * One entry on the Health Timeline: a dot on a hairline rail beside a card.
  * Reports are pressable and open the full extraction; patterns ("Normal You"
- * drifts) render with the gold accent and stay in place.
+ * drifts) render with the gold accent; symptoms you logged stay sage.
  */
 export function TimelineEventCard({
   event,
@@ -35,7 +35,9 @@ export function TimelineEventCard({
   railBottom = true,
 }: TimelineEventCardProps) {
   const router = useRouter();
+  const { colors } = useTheme();
   const isPattern = event.event_type === "pattern";
+  const isSymptom = event.event_type === "symptom";
   const count = stats?.count ?? 0;
   const flagged = stats?.flagged ?? 0;
 
@@ -45,6 +47,14 @@ export function TimelineEventCard({
         <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
           {isPattern && (
             <Activity size={14} strokeWidth={1.5} color={colors.gold} style={{ alignSelf: "center" }} />
+          )}
+          {isSymptom && (
+            <MessageSquareHeart
+              size={14}
+              strokeWidth={1.5}
+              color={colors.sage}
+              style={{ alignSelf: "center" }}
+            />
           )}
           <Text variant="label" numberOfLines={1} style={{ flex: 1 }}>
             {event.title}
@@ -71,6 +81,21 @@ export function TimelineEventCard({
           >
             <Text variant="caption" tone="gold">
               Your pattern · vs your own baseline
+            </Text>
+          </View>
+        ) : isSymptom ? (
+          <View
+            style={{
+              alignSelf: "flex-start",
+              backgroundColor: colors.sageSoft,
+              borderRadius: 12,
+              paddingHorizontal: 10,
+              paddingVertical: 3,
+              marginTop: 2,
+            }}
+          >
+            <Text variant="caption" tone="sage">
+              You logged this
             </Text>
           </View>
         ) : (
@@ -146,7 +171,7 @@ export function TimelineEventCard({
         />
       </View>
 
-      {isPattern || event.report_id === null ? (
+      {isPattern || isSymptom || event.report_id === null ? (
         <View style={{ flex: 1, marginLeft: 4 }}>{body}</View>
       ) : (
         <PressableScale

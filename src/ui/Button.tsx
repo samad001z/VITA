@@ -3,7 +3,8 @@ import { ActivityIndicator, View, type StyleProp, type ViewStyle } from "react-n
 
 import { PressableScale, type PressableScaleProps } from "./PressableScale";
 import { Text } from "./Text";
-import { colors, gradients, liftShadow, radius } from "./theme";
+import { liftShadow, radius } from "./theme";
+import { useTheme } from "./ThemeContext";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
 type ButtonSize = "md" | "sm";
@@ -33,6 +34,7 @@ export function Button({
   style,
   ...rest
 }: ButtonProps) {
+  const { colors, gradients } = useTheme();
   const isDisabled = disabled === true || loading;
   const labelTone = variant === "primary" ? "onSage" : variant === "ghost" ? "sage" : "ink";
 

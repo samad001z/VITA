@@ -1,7 +1,8 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { View, type ViewProps } from "react-native";
 
-import { ambientShadow, colors, gradients, liftShadow, radius } from "./theme";
+import { ambientShadow, liftShadow, radius } from "./theme";
+import { useTheme } from "./ThemeContext";
 
 export interface CardProps extends ViewProps {
   /** Token radius: sm 14 · md 20 · lg 28 */
@@ -19,6 +20,8 @@ export function Card({
   children,
   ...rest
 }: CardProps) {
+  const { colors, gradients } = useTheme();
+
   if (variant === "hero") {
     return (
       <View style={[{ borderRadius: radius[rounded] }, liftShadow, style]} {...rest}>

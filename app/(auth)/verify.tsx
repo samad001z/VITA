@@ -1,9 +1,9 @@
-import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, View } from "react-native";
 import Animated from "react-native-reanimated";
 
+import { error as errorHaptic, success } from "@/lib/haptics";
 import { supabase } from "@/lib/supabase";
 import { enterUp, OTPInput, PressableScale, Screen, Text } from "@/ui";
 
@@ -42,16 +42,12 @@ export default function VerifyScreen() {
     });
     setVerifying(false);
     if (verifyError !== null) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(
-        () => undefined,
-      );
+      errorHaptic();
       setError("That code didn't match. Check it and try again.");
       setCode("");
       return;
     }
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
-      () => undefined,
-    );
+    success();
     router.replace("/(tabs)");
   };
 

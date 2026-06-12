@@ -20,7 +20,7 @@ export type HealthMetric =
   | "hrv"
   | "active_energy";
 export type ReportStatus = "uploaded" | "processing" | "processed" | "failed";
-export type TimelineEventType = "report" | "pattern";
+export type TimelineEventType = "report" | "pattern" | "symptom";
 export type ProfileSex = "female" | "male" | "other" | "undisclosed";
 
 export interface Database {

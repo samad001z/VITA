@@ -7,7 +7,7 @@ import {
   pickFromLibrary,
   type PickedFile,
 } from "@/lib/reports";
-import { colors, PressableScale, Sheet, Text } from "@/ui";
+import { PressableScale, Sheet, Text, useTheme } from "@/ui";
 
 export interface AddReportSheetProps {
   visible: boolean;
@@ -44,6 +44,7 @@ const options: SourceOption[] = [
 ];
 
 export function AddReportSheet({ visible, onClose, onPicked }: AddReportSheetProps) {
+  const { colors } = useTheme();
   const handle = async (option: SourceOption): Promise<void> => {
     const file = await option.pick();
     onClose();

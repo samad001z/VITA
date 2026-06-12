@@ -1,10 +1,11 @@
 import { Redirect, Stack } from "expo-router";
 
 import { useAuth } from "@/providers/AuthProvider";
-import { colors } from "@/ui";
+import { useTheme } from "@/ui";
 
 export default function AuthLayout() {
   const { session } = useAuth();
+  const { colors } = useTheme();
 
   if (session !== null) {
     return <Redirect href="/(tabs)" />;

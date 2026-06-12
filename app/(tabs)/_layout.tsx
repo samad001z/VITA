@@ -2,10 +2,11 @@ import { Redirect, Tabs } from "expo-router";
 
 import { TabBar } from "@/components/TabBar";
 import { useAuth } from "@/providers/AuthProvider";
-import { colors } from "@/ui";
+import { useTheme } from "@/ui";
 
 export default function TabsLayout() {
   const { session, isLoading } = useAuth();
+  const { colors } = useTheme();
 
   if (isLoading) return null;
   if (session === null) {

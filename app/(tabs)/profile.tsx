@@ -1,5 +1,5 @@
 import Constants from "expo-constants";
-import { Activity, ChevronRight, QrCode } from "lucide-react-native";
+import { Activity, ChevronRight, MoonStar, QrCode } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -7,11 +7,19 @@ import Animated from "react-native-reanimated";
 import { HealthSheet } from "@/components/HealthSheet";
 import { ShareSheet } from "@/components/ShareSheet";
 import { useHealthSync } from "@/hooks/useHealthSync";
+import { select } from "@/lib/haptics";
 import { METRIC_INFO } from "@/lib/health/types";
 import { useAuth } from "@/providers/AuthProvider";
-import { Button, Card, colors, enterUp, PressableScale, Screen, Text } from "@/ui";
+import { Button, Card, enterUp, PressableScale, Screen, Text, useTheme } from "@/ui";
+
+const THEME_CHOICES = [
+  { mode: "system", label: "System" },
+  { mode: "light", label: "Light" },
+  { mode: "dark", label: "Dark" },
+] as const;
 
 export default function ProfileScreen() {
+  const { colors, mode, setMode } = useTheme();
   const { session, signOut } = useAuth();
   const { enabledMetrics, syncing, refresh } = useHealthSync();
   const [signingOut, setSigningOut] = useState(false);
@@ -32,7 +40,7 @@ export default function ProfileScreen() {
   const version = Constants.expoConfig?.version ?? "0.1.0";
 
   return (
-    <Screen tabbed animated={false}>
+    <Screen tabbed scroll animated={false}>
       <Animated.View entering={enterUp(0)} style={{ paddingTop: 8, paddingBottom: 16 }}>
         <Text variant="title">You</Text>
       </Animated.View>
@@ -127,6 +135,63 @@ export default function ProfileScreen() {
         </Animated.View>
         <Animated.View entering={enterUp(4)}>
           <Card>
+            <View style={{ gap: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: colors.sageSoft,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <MoonStar size={20} strokeWidth={1.5} color={colors.sage} />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text variant="label">Appearance</Text>
+                  <Text variant="caption" tone="soft">
+                    Forest night after dark, porcelain by day
+                  </Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {THEME_CHOICES.map((choice) => {
+                  const selected = mode === choice.mode;
+                  return (
+                    <PressableScale
+                      key={choice.mode}
+                      haptic={false}
+                      accessibilityLabel={`${choice.label} appearance`}
+                      accessibilityState={{ selected }}
+                      onPress={() => {
+                        select();
+                        setMode(choice.mode);
+                      }}
+                      style={{
+                        flex: 1,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingVertical: 10,
+                        borderRadius: 22,
+                        borderWidth: 1,
+                        borderColor: selected ? colors.sage : colors.hairline,
+                        backgroundColor: selected ? colors.sageSoft : "transparent",
+                      }}
+                    >
+                      <Text variant="label" tone={selected ? "sage" : "soft"}>
+                        {choice.label}
+                      </Text>
+                    </PressableScale>
+                  );
+                })}
+              </View>
+            </View>
+          </Card>
+        </Animated.View>
+        <Animated.View entering={enterUp(5)}>
+          <Card>
             <View style={{ gap: 4 }}>
               <Text variant="label">Your data, your rules</Text>
               <Text variant="caption" tone="soft" style={{ lineHeight: 18 }}>
@@ -136,7 +201,7 @@ export default function ProfileScreen() {
             </View>
           </Card>
         </Animated.View>
-        <Animated.View entering={enterUp(5)} style={{ marginTop: 8, gap: 12 }}>
+        <Animated.View entering={enterUp(6)} style={{ marginTop: 8, gap: 12 }}>
           <Button
             title="Sign out"
             variant="secondary"

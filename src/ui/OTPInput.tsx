@@ -4,7 +4,8 @@ import Animated from "react-native-reanimated";
 
 import { enterUp } from "./motion";
 import { Text } from "./Text";
-import { colors, radius } from "./theme";
+import { radius } from "./theme";
+import { useTheme } from "./ThemeContext";
 
 export interface OTPInputProps {
   length?: number;
@@ -25,6 +26,7 @@ export function OTPInput({
   invalid = false,
   autoFocus = true,
 }: OTPInputProps) {
+  const { colors } = useTheme();
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
 

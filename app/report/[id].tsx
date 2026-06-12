@@ -9,13 +9,13 @@ import { type ObservationRow } from "@/lib/database.types";
 import {
   Button,
   Card,
-  colors,
   EmptyState,
   enterUp,
   PressableScale,
   Screen,
   Skeleton,
   Text,
+  useTheme,
 } from "@/ui";
 
 function formatDate(iso: string | null): string {
@@ -25,6 +25,7 @@ function formatDate(iso: string | null): string {
 }
 
 export default function ReportDetailScreen() {
+  const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { report, event, groups, error, refresh } = useReportDetail(id ?? "");

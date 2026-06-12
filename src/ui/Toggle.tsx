@@ -1,4 +1,3 @@
-import * as Haptics from "expo-haptics";
 import { Pressable } from "react-native";
 import Animated, {
   interpolateColor,
@@ -6,7 +5,10 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 
-import { colors, SPRING } from "./theme";
+import { select } from "@/lib/haptics";
+
+import { SPRING } from "./theme";
+import { useTheme } from "./ThemeContext";
 
 export interface ToggleProps {
   value: boolean;
@@ -20,13 +22,15 @@ const TRACK_HEIGHT = 28;
 const THUMB = 22;
 const INSET = 3;
 
-/** House switch: sage track, springing thumb, light haptic. No Material. */
+/** House switch: sage track, springing thumb, selection haptic. No Material. */
 export function Toggle({ value, onChange, accessibilityLabel, disabled = false }: ToggleProps) {
+  const { colors } = useTheme();
+
   const trackStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
       withSpring(value ? 1 : 0, SPRING),
       [0, 1],
-      ["rgba(26,26,30,0.10)", colors.sage],
+      [colors.fill, colors.sage],
     ),
   }));
 
@@ -45,7 +49,7 @@ export function Toggle({ value, onChange, accessibilityLabel, disabled = false }
       hitSlop={8}
       style={{ minHeight: 44, justifyContent: "center", opacity: disabled ? 0.4 : 1 }}
       onPress={() => {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+        select();
         onChange(!value);
       }}
     >

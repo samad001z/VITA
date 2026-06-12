@@ -3,7 +3,7 @@ import Animated from "react-native-reanimated";
 
 import { enterUp } from "./motion";
 import { Text } from "./Text";
-import { colors } from "./theme";
+import { useTheme } from "./ThemeContext";
 
 export interface EmptyStateProps {
   icon: React.ReactNode;
@@ -15,6 +15,7 @@ export interface EmptyStateProps {
 
 /** Designed empty state: soft sage icon disc, staggered entrance. */
 export function EmptyState({ icon, title, body, footnote, action }: EmptyStateProps) {
+  const { colors } = useTheme();
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
       <Animated.View

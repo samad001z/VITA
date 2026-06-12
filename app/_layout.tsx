@@ -16,12 +16,13 @@ import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
-import { colors, SheetProvider, SheetStage } from "@/ui";
+import { SheetProvider, SheetStage, ThemeProvider, useTheme } from "@/ui";
 
 void SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { isLoading } = useAuth();
+  const { colors } = useTheme();
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -51,21 +52,35 @@ function RootNavigator() {
     >
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      {/* Reports rise from below like a sheet of paper being handed over. */}
+      <Stack.Screen
+        name="report/[id]"
+        options={{ animation: "slide_from_bottom", gestureEnabled: true }}
+      />
     </Stack>
   );
 }
 
-export default function RootLayout() {
+function ThemedShell() {
+  const { colors, scheme } = useTheme();
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <AuthProvider>
         <SheetProvider>
-          <StatusBar style="dark" />
+          <StatusBar style={scheme === "dark" ? "light" : "dark"} />
           <SheetStage>
             <RootNavigator />
           </SheetStage>
         </SheetProvider>
       </AuthProvider>
     </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <ThemedShell />
+    </ThemeProvider>
   );
 }

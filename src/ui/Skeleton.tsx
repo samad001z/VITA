@@ -9,6 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { radius } from "./theme";
+import { useTheme } from "./ThemeContext";
 
 export interface SkeletonProps {
   width?: DimensionValue;
@@ -18,6 +19,7 @@ export interface SkeletonProps {
 
 /** Loading placeholder with the 1.5s ambient breathing pulse. */
 export function Skeleton({ width = "100%", height = 16, rounded = "sm" }: SkeletonProps) {
+  const { colors } = useTheme();
   const pulse = useSharedValue(0.45);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export function Skeleton({ width = "100%", height = 16, rounded = "sm" }: Skelet
           width,
           height,
           borderRadius: radius[rounded],
-          backgroundColor: "rgba(26,26,30,0.06)",
+          backgroundColor: colors.fill,
         },
         animatedStyle,
       ]}

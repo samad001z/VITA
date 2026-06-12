@@ -1,5 +1,7 @@
 export * from "./theme";
 export * from "./motion";
+export { ThemeProvider, useTheme, type Theme, type ThemeMode } from "./ThemeContext";
+export { Bloom, type BloomProps } from "./Bloom";
 export { Text, type TextProps, type TextVariant, type TextTone } from "./Text";
 export { Screen, type ScreenProps } from "./Screen";
 export { Card, type CardProps } from "./Card";

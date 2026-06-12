@@ -9,13 +9,13 @@ import { TypingIndicator } from "@/components/TypingIndicator";
 import { type ChatMessage, useChat } from "@/hooks/useChat";
 import {
   Card,
-  colors,
   enterUp,
   Input,
   PressableScale,
   radius,
   Screen,
   Text,
+  useTheme,
 } from "@/ui";
 
 const SUGGESTIONS = [
@@ -25,6 +25,7 @@ const SUGGESTIONS = [
 ];
 
 export default function ChatScreen() {
+  const { colors } = useTheme();
   const { messages, thinking, error, send, retry } = useChat();
   const [draft, setDraft] = useState("");
   const listRef = useRef<FlashListRef<ChatMessage>>(null);

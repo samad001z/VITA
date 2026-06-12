@@ -10,12 +10,13 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { Card, colors, radius } from "@/ui";
+import { Card, radius, useTheme } from "@/ui";
 
 const DOT_COUNT = 3;
 const BREATH_MS = 1500;
 
 function Dot({ index }: { index: number }) {
+  const { colors } = useTheme();
   const opacity = useSharedValue(0.25);
 
   useEffect(() => {

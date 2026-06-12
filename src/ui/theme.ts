@@ -1,13 +1,16 @@
 import { Platform, type TextStyle, type ViewStyle } from "react-native";
 
 /**
- * VITA design tokens v2 — "Vital Luxe".
- * Calm clinical trust, now with depth: deep forest heroes, luminous sage
- * gradients, glass surfaces, one disciplined gold accent. Every color,
- * size, radius, gradient, and spring in the app comes from here.
+ * VITA design tokens v3 — "Living Bloom".
+ * Calm clinical trust with a living centerpiece: deep forest heroes, luminous
+ * sage gradients, one disciplined gold accent — now in light and dark. Every
+ * color, size, radius, gradient, and spring in the app resolves through
+ * useTheme(); nothing outside this file defines a value.
  */
 
-export const colors = {
+export type ColorScheme = "light" | "dark";
+
+const lightColors = {
   // Canvas
   bg: "#F6F7F3",
   bgDeep: "#EDF0E9",
@@ -19,7 +22,7 @@ export const colors = {
   inkSoft: "rgba(22,24,28,0.56)",
   inkFaint: "rgba(22,24,28,0.34)",
 
-  // Sage — the brand, deepened
+  // Sage — the brand
   sage: "#578A6C",
   sageBright: "#7DB18F",
   sageDeep: "#33523F",
@@ -32,25 +35,93 @@ export const colors = {
   onForestSoft: "rgba(242,245,240,0.62)",
   onForestFaint: "rgba(242,245,240,0.34)",
 
-  // Gold — premium accent, used sparingly (patterns, highlights)
-  gold: "#C2974E",
+  // Gold — premium accent, used sparingly (patterns, highlights).
+  // Text-safe on white (≥4.5:1); rich gold lives in gradients.gold.
+  gold: "#97702B",
   goldSoft: "rgba(194,151,78,0.14)",
 
-  // Coral — alerts ONLY
-  coral: "#E8826B",
+  // Coral — alerts ONLY. Text-safe on white; soft tint carries the warmth.
+  coral: "#C14F36",
   coralSoft: "rgba(232,130,107,0.12)",
 
   hairline: "rgba(22,24,28,0.07)",
+  /** Neutral fill for skeletons, off-toggle tracks, quiet wells. */
+  fill: "rgba(22,24,28,0.06)",
   onSage: "#FFFFFF",
-} as const;
+};
+
+export type ColorPalette = { readonly [K in keyof typeof lightColors]: string };
+
+/** Forest night — the serene dark canvas. Same hues, lifted for contrast. */
+const darkColors: ColorPalette = {
+  bg: "#0F1411",
+  bgDeep: "#0A0E0B",
+  surface: "#181F1A",
+  glass: "rgba(24,31,26,0.78)",
+
+  ink: "#F2F5F0",
+  inkSoft: "rgba(242,245,240,0.64)",
+  inkFaint: "rgba(242,245,240,0.40)",
+
+  sage: "#7DB18F",
+  sageBright: "#93C7A6",
+  sageDeep: "#C4DCCD",
+  sageSoft: "rgba(125,177,143,0.16)",
+
+  forest: "#1E2F25",
+  forestSoft: "#2A4435",
+  onForest: "#F2F5F0",
+  onForestSoft: "rgba(242,245,240,0.62)",
+  onForestFaint: "rgba(242,245,240,0.34)",
+
+  gold: "#D8B26E",
+  goldSoft: "rgba(216,178,110,0.18)",
+
+  coral: "#F09780",
+  coralSoft: "rgba(240,151,128,0.16)",
+
+  hairline: "rgba(242,245,240,0.09)",
+  fill: "rgba(242,245,240,0.08)",
+  onSage: "#FFFFFF",
+};
+
+export interface GradientSet {
+  /** Sage brand fill — primary buttons, key affordances. */
+  primary: readonly [string, string];
+  /** Forest hero card. */
+  hero: readonly [string, string];
+  /** Gold — "your body's patterns" moments only. */
+  gold: readonly [string, string];
+  /** Ambient background orbs. */
+  orbSage: readonly [string, string];
+  orbGold: readonly [string, string];
+}
 
 /** Two-stop gradients. Always top-left → bottom-right unless stated. */
-export const gradients = {
-  primary: ["#6CA483", "#3F7257"] as const,
-  hero: ["#243B2E", "#141F18"] as const,
-  gold: ["#D6B375", "#B68B41"] as const,
-  orbSage: ["rgba(125,177,143,0.32)", "rgba(125,177,143,0)"] as const,
-  orbGold: ["rgba(214,179,117,0.20)", "rgba(214,179,117,0)"] as const,
+const lightGradients: GradientSet = {
+  primary: ["#6CA483", "#3F7257"],
+  hero: ["#243B2E", "#141F18"],
+  gold: ["#D6B375", "#B68B41"],
+  orbSage: ["rgba(125,177,143,0.32)", "rgba(125,177,143,0)"],
+  orbGold: ["rgba(214,179,117,0.20)", "rgba(214,179,117,0)"],
+};
+
+const darkGradients: GradientSet = {
+  primary: ["#5E9678", "#35624A"],
+  hero: ["#2C4736", "#131D16"],
+  gold: ["#CBA968", "#A87F3D"],
+  orbSage: ["rgba(125,177,143,0.20)", "rgba(125,177,143,0)"],
+  orbGold: ["rgba(214,179,117,0.12)", "rgba(214,179,117,0)"],
+};
+
+export const palettes: Record<ColorScheme, ColorPalette> = {
+  light: lightColors,
+  dark: darkColors,
+};
+
+export const gradientSets: Record<ColorScheme, GradientSet> = {
+  light: lightGradients,
+  dark: darkGradients,
 };
 
 export const typeScale = {
@@ -76,6 +147,9 @@ export const SCREEN_PADDING = 20;
 export const SPRING = { damping: 18, stiffness: 180 } as const;
 
 export const STAGGER_MS = 40;
+
+/** Ambient loops (live dots, the Bloom's breath) share one calm cycle. */
+export const BREATH_MS = 3200;
 
 /** Soft ambient shadow for resting cards. */
 export const ambientShadow: ViewStyle = Platform.select<ViewStyle>({

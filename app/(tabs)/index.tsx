@@ -6,16 +6,18 @@ import Animated from "react-native-reanimated";
 
 import { AddReportSheet } from "@/components/AddReportSheet";
 import { METRIC_ICONS } from "@/components/metricIcons";
+import { QuickLogSheet } from "@/components/QuickLogSheet";
 import { ReportCard } from "@/components/ReportCard";
 import { TimelineEventCard } from "@/components/TimelineEventCard";
 import { type MetricInsight, useInsights } from "@/hooks/useInsights";
 import { useTimeline } from "@/hooks/useTimeline";
 import { type ReportRow, type TimelineEventRow } from "@/lib/database.types";
+import { success, warning } from "@/lib/haptics";
 import { type PickedFile, requestExtraction, uploadReport } from "@/lib/reports";
 import {
+  Bloom,
   Button,
   Card,
-  colors,
   EmptyState,
   enterUp,
   MetricTile,
@@ -24,6 +26,7 @@ import {
   SectionHeader,
   Skeleton,
   Text,
+  useTheme,
 } from "@/ui";
 
 type TimelineItem =
@@ -87,9 +90,11 @@ function metricFormat(insight: MetricInsight): ((n: number) => string) | undefin
 }
 
 export default function HomeScreen() {
+  const { colors } = useTheme();
   const { events, pending, stats, error, refresh } = useTimeline();
   const { insights, refresh: refreshInsights } = useInsights();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [quickLogOpen, setQuickLogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -105,7 +110,9 @@ export default function HomeScreen() {
         // API offline — report stays queued with a retry affordance.
       }
       await Promise.all([refresh(), refreshInsights()]);
+      success();
     } catch (e) {
+      warning();
       setUploadError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
@@ -211,6 +218,7 @@ export default function HomeScreen() {
               pending={pending}
               uploading={uploading}
               onChanged={() => void refresh()}
+              onQuickLog={() => setQuickLogOpen(true)}
             />
           }
           renderItem={({ item, index }: { item: TimelineItem; index: number }) =>
@@ -246,6 +254,11 @@ export default function HomeScreen() {
         onClose={() => setSheetOpen(false)}
         onPicked={(file) => void handlePicked(file)}
       />
+      <QuickLogSheet
+        visible={quickLogOpen}
+        onClose={() => setQuickLogOpen(false)}
+        onLogged={() => void refresh()}
+      />
     </Screen>
   );
 }
@@ -257,6 +270,7 @@ interface HomeHeaderProps {
   pending: ReportRow[];
   uploading: boolean;
   onChanged: () => void;
+  onQuickLog: () => void;
 }
 
 function HomeHeader({
@@ -266,7 +280,9 @@ function HomeHeader({
   pending,
   uploading,
   onChanged,
+  onQuickLog,
 }: HomeHeaderProps) {
+  const { colors } = useTheme();
   const rows = useMemo(() => {
     const list = insights ?? [];
     const chunked: MetricInsight[][] = [];
@@ -276,22 +292,59 @@ function HomeHeader({
     return chunked;
   }, [insights]);
 
+  // The Bloom listens to the pattern engine: gold-warmed when drifting.
+  const drifting = (insights ?? []).filter((i) => i.deltaTone === "gold");
+  const headline =
+    drifting.length > 0
+      ? "Something is shifting"
+      : metricCount > 0
+        ? "In rhythm with your normal"
+        : "Your body, in rhythm";
+  const status =
+    drifting.length > 0
+      ? `${drifting[0]?.label ?? "A metric"} is drifting from your usual`
+      : `${reportCount} report${reportCount === 1 ? "" : "s"} on your timeline${
+          metricCount > 0 ? ` · ${metricCount} metrics learning your normal` : ""
+        }`;
+
   return (
     <View style={{ gap: 12, marginBottom: 8 }}>
       <Animated.View entering={enterUp(0)}>
         <Card variant="hero">
-          <View style={{ gap: 6 }}>
-            <Text variant="caption" tone="onForestSoft">
-              {greeting()}
-            </Text>
-            <Text variant="heading" tone="onForest">
-              Your body, in rhythm
-            </Text>
-            <Text variant="caption" tone="onForestSoft" style={{ marginTop: 2 }}>
-              {reportCount} report{reportCount === 1 ? "" : "s"} on your timeline
-              {metricCount > 0 ? ` · ${metricCount} metrics learning your normal` : ""}
-            </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={{ flex: 1, gap: 6, paddingVertical: 4 }}>
+              <Text variant="caption" tone="onForestSoft">
+                {greeting()}
+              </Text>
+              <Text variant="heading" tone="onForest">
+                {headline}
+              </Text>
+              <Text variant="caption" tone="onForestSoft" style={{ marginTop: 2 }}>
+                {status}
+              </Text>
+            </View>
+            <View style={{ marginRight: -8 }}>
+              <Bloom size={104} tone={drifting.length > 0 ? "insight" : "calm"} />
+            </View>
           </View>
+          <PressableScale
+            accessibilityLabel="Log how you feel"
+            onPress={onQuickLog}
+            style={{
+              marginTop: 10,
+              alignSelf: "flex-start",
+              paddingHorizontal: 16,
+              paddingVertical: 10,
+              borderRadius: 22,
+              borderWidth: 1,
+              borderColor: "rgba(242,245,240,0.22)",
+              backgroundColor: "rgba(242,245,240,0.10)",
+            }}
+          >
+            <Text variant="label" tone="onForest">
+              Log how you feel
+            </Text>
+          </PressableScale>
         </Card>
       </Animated.View>
 

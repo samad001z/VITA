@@ -3,7 +3,7 @@ import { FileText } from "lucide-react-native";
 import { View } from "react-native";
 
 import { type ChatMessage } from "@/hooks/useChat";
-import { Card, colors, PressableScale, radius, Text } from "@/ui";
+import { Card, PressableScale, radius, Text, useTheme } from "@/ui";
 
 export interface ChatBubbleProps {
   message: ChatMessage;
@@ -15,6 +15,7 @@ export interface ChatBubbleProps {
  */
 export function ChatBubble({ message }: ChatBubbleProps) {
   const router = useRouter();
+  const { colors } = useTheme();
 
   if (message.role === "user") {
     return (

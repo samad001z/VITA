@@ -13,12 +13,15 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 
+import { useTheme } from "./ThemeContext";
+
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 export interface SparklineProps {
   /** Oldest → newest values. Needs 2+ points to draw. */
   series: number[];
   height?: number;
+  /** Defaults to the theme's sage. */
   color?: string;
   /** Fill under the line with a soft gradient. */
   filled?: boolean;
@@ -52,7 +55,9 @@ function buildPath(series: number[], width: number, height: number): string {
 }
 
 /** Custom-drawn sparkline: hairline-weight stroke that draws in on mount. */
-export function Sparkline({ series, height = 36, color = "#578A6C", filled = true }: SparklineProps) {
+export function Sparkline({ series, height = 36, color, filled = true }: SparklineProps) {
+  const { colors } = useTheme();
+  const stroke = color ?? colors.sage;
   const [width, setWidth] = useState(0);
   const dashOffset = useSharedValue(DASH);
 
@@ -78,14 +83,14 @@ export function Sparkline({ series, height = 36, color = "#578A6C", filled = tru
         <Svg width={width} height={height}>
           <Defs>
             <SvgLinearGradient id="sparkfill" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={color} stopOpacity={0.18} />
-              <Stop offset="1" stopColor={color} stopOpacity={0} />
+              <Stop offset="0" stopColor={stroke} stopOpacity={0.18} />
+              <Stop offset="1" stopColor={stroke} stopOpacity={0} />
             </SvgLinearGradient>
           </Defs>
           {filled && <Path d={area} fill="url(#sparkfill)" />}
           <AnimatedPath
             d={line}
-            stroke={color}
+            stroke={stroke}
             strokeWidth={1.5}
             strokeLinecap="round"
             fill="none"

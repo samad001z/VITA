@@ -1,6 +1,7 @@
 import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from "react-native";
 
-import { colors, fontStyle, typeScale } from "./theme";
+import { fontStyle, typeScale } from "./theme";
+import { useTheme } from "./ThemeContext";
 
 export type TextVariant = "display" | "title" | "heading" | "body" | "label" | "caption";
 export type TextTone =
@@ -50,24 +51,26 @@ const variantStyles: Record<TextVariant, TextStyle> = {
   },
 };
 
-const toneColors: Record<TextTone, string> = {
-  ink: colors.ink,
-  soft: colors.inkSoft,
-  faint: colors.inkFaint,
-  sage: colors.sage,
-  gold: colors.gold,
-  coral: colors.coral,
-  onSage: colors.onSage,
-  onForest: colors.onForest,
-  onForestSoft: colors.onForestSoft,
-};
-
 export interface TextProps extends RNTextProps {
   variant?: TextVariant;
   tone?: TextTone;
 }
 
 export function Text({ variant = "body", tone = "ink", style, ...rest }: TextProps) {
+  const { colors } = useTheme();
+
+  const toneColors: Record<TextTone, string> = {
+    ink: colors.ink,
+    soft: colors.inkSoft,
+    faint: colors.inkFaint,
+    sage: colors.sage,
+    gold: colors.gold,
+    coral: colors.coral,
+    onSage: colors.onSage,
+    onForest: colors.onForest,
+    onForestSoft: colors.onForestSoft,
+  };
+
   return (
     <RNText
       style={[variantStyles[variant], { color: toneColors[tone] }, style]}

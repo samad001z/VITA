@@ -4,7 +4,7 @@ import { View } from "react-native";
 
 import { type ReportRow } from "@/lib/database.types";
 import { requestExtraction } from "@/lib/reports";
-import { Card, colors, PressableScale, Skeleton, Text } from "@/ui";
+import { Card, PressableScale, Skeleton, Text, useTheme } from "@/ui";
 
 export interface ReportCardProps {
   report: ReportRow;
@@ -19,6 +19,7 @@ function formatDate(iso: string | null): string {
 }
 
 export function ReportCard({ report, observationCount, onChanged }: ReportCardProps) {
+  const { colors } = useTheme();
   const [retrying, setRetrying] = useState(false);
   const Icon = report.file_type === "pdf" ? FileText : ImageIcon;
   const isWorking = report.status === "processing";

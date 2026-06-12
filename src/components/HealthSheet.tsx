@@ -6,7 +6,7 @@ import { registerHealthSyncTask, unregisterHealthSyncTask } from "@/lib/health/b
 import { getHealthProvider } from "@/lib/health/provider";
 import { getEnabledMetrics, setEnabledMetrics } from "@/lib/health/settings";
 import { ALL_METRICS, type HealthMetric, METRIC_INFO } from "@/lib/health/types";
-import { Button, colors, Sheet, Text, Toggle } from "@/ui";
+import { Button, Sheet, Text, Toggle, useTheme } from "@/ui";
 
 export interface HealthSheetProps {
   visible: boolean;
@@ -20,6 +20,7 @@ export interface HealthSheetProps {
  * reason for wanting it. Nothing is requested until the user taps Connect.
  */
 export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
+  const { colors } = useTheme();
   const provider = getHealthProvider();
   const [selected, setSelected] = useState<Set<HealthMetric>>(new Set(ALL_METRICS));
   const [busy, setBusy] = useState(false);

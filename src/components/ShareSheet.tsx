@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
+import { success, warning } from "@/lib/haptics";
 import { createShare, revokeShares, type ShareGrant } from "@/lib/share";
-import { Button, colors, radius, Sheet, Skeleton, Text } from "@/ui";
+import { Button, radius, Sheet, Skeleton, Text, useTheme } from "@/ui";
 
 export interface ShareSheetProps {
   visible: boolean;
@@ -29,6 +30,7 @@ function formatCountdown(total: number): string {
  * as a QR code with a live countdown. Revoking kills the link immediately.
  */
 export function ShareSheet({ visible, onClose }: ShareSheetProps) {
+  const { colors } = useTheme();
   const [phase, setPhase] = useState<Phase>("creating");
   const [grant, setGrant] = useState<ShareGrant | null>(null);
   const [left, setLeft] = useState(0);
@@ -42,6 +44,7 @@ export function ShareSheet({ visible, onClose }: ShareSheetProps) {
       setGrant(fresh);
       setLeft(remainingSeconds(fresh.expiresAt));
       setPhase("active");
+      success();
     } catch {
       setPhase("error");
     }
@@ -63,6 +66,7 @@ export function ShareSheet({ visible, onClose }: ShareSheetProps) {
 
   const revoke = async (): Promise<void> => {
     setRevoking(true);
+    warning();
     try {
       await revokeShares();
       onClose();
@@ -101,7 +105,8 @@ export function ShareSheet({ visible, onClose }: ShareSheetProps) {
               style={{
                 alignSelf: "center",
                 padding: 16,
-                backgroundColor: colors.surface,
+                // QR stays ink-on-white in both themes so scanners always read it.
+                backgroundColor: "#FFFFFF",
                 borderRadius: radius.md,
                 borderWidth: 1,
                 borderColor: colors.hairline,
@@ -113,8 +118,8 @@ export function ShareSheet({ visible, onClose }: ShareSheetProps) {
                 <QRCode
                   value={grant.shareUrl}
                   size={QR_SIZE}
-                  color={colors.ink}
-                  backgroundColor={colors.surface}
+                  color="#16181C"
+                  backgroundColor="#FFFFFF"
                 />
               )}
             </View>

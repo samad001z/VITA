@@ -6,7 +6,7 @@ import { View } from "react-native";
 import Animated, { useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, PressableScale, radius, SCREEN_PADDING, SPRING, Text } from "@/ui";
+import { PressableScale, radius, SCREEN_PADDING, SPRING, Text, useTheme } from "@/ui";
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0];
 
@@ -25,6 +25,7 @@ const tabConfig: Record<string, { icon: LucideIcon; label: string }> = {
  */
 export function TabBar({ state, descriptors, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
+  const { colors, scheme } = useTheme();
   const [barWidth, setBarWidth] = useState(0);
 
   const tabWidth = barWidth > 0 ? barWidth / state.routes.length : 0;
@@ -47,13 +48,13 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
     >
       <BlurView
         intensity={50}
-        tint="light"
+        tint={scheme === "dark" ? "dark" : "light"}
         style={{
           borderRadius: radius.lg,
           overflow: "hidden",
           borderWidth: 1,
           borderColor: colors.hairline,
-          backgroundColor: "rgba(255,255,255,0.78)",
+          backgroundColor: colors.glass,
         }}
       >
         <View
