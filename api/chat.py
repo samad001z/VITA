@@ -12,7 +12,7 @@ from google import genai
 from google.genai import types
 
 from extraction import wire_schema
-from schemas import ChatAnswer
+from schemas import ChatAnswer, VoiceAnswer
 
 _SYSTEM = """\
 You are VITA, a calm health companion. You help the user understand their own
@@ -145,6 +145,67 @@ def build_context(
     return "\n\n".join(blocks)
 
 
+_VOICE_RULES = """\
+
+Voice turn: the user's latest question arrives as an attached audio clip.
+- Transcribe it faithfully into the transcript field, in the language spoken.
+- Then answer the transcribed question following every rule above.
+- If the audio is silent or unintelligible, set transcript to an empty string
+  and ask the user, kindly, to try speaking again.
+"""
+
+
+def _client_and_model() -> tuple[genai.Client, str]:
+    client = genai.Client(
+        vertexai=True,
+        project=os.environ["GOOGLE_CLOUD_PROJECT"],
+        location=os.environ.get("GOOGLE_CLOUD_LOCATION", "global"),
+    )
+    return client, os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+
+
+def answer_voice(
+    audio_bytes: bytes,
+    mime_type: str,
+    history: list[dict],
+    context: str,
+    language: str = "en",
+) -> VoiceAnswer:
+    """Grounded voice turn: transcribe the user's audio and answer it in one
+    structured Gemini call. `history` holds the prior text turns only."""
+    client, model = _client_and_model()
+
+    contents = [
+        types.Content(
+            role="user" if msg["role"] == "user" else "model",
+            parts=[types.Part(text=msg["content"])],
+        )
+        for msg in history
+    ]
+    contents.append(
+        types.Content(
+            role="user",
+            parts=[types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)],
+        )
+    )
+
+    response = client.models.generate_content(
+        model=model,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            system_instruction=_SYSTEM
+            + _LANGUAGE_RULES.get(language, "")
+            + _VOICE_RULES
+            + context,
+            response_mime_type="application/json",
+            response_json_schema=wire_schema(VoiceAnswer),
+            temperature=0.2,
+        ),
+    )
+
+    return VoiceAnswer.model_validate_json(response.text or "{}")
+
+
 def answer_question(history: list[dict], context: str, language: str = "en") -> ChatAnswer:
     """Run the grounded chat turn and validate the structured response.
 
@@ -152,12 +213,7 @@ def answer_question(history: list[dict], context: str, language: str = "en") -> 
     `language` selects the response language (en/te/hi); unknown codes fall
     back to English. Raises pydantic.ValidationError or google.genai errors.
     """
-    client = genai.Client(
-        vertexai=True,
-        project=os.environ["GOOGLE_CLOUD_PROJECT"],
-        location=os.environ.get("GOOGLE_CLOUD_LOCATION", "global"),
-    )
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    client, model = _client_and_model()
 
     contents = [
         types.Content(

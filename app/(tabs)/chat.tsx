@@ -1,13 +1,25 @@
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
-import { ArrowUp, MessageCircle, Sparkles } from "lucide-react-native";
+import * as Speech from "expo-speech";
+import { ArrowUp, MessageCircle, Mic, Sparkles, X } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Keyboard, KeyboardAvoidingView, View } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
 import { ChatBubble } from "@/components/ChatBubble";
 import { TypingIndicator } from "@/components/TypingIndicator";
 import { type ChatMessage, useChat } from "@/hooks/useChat";
+import { useVoiceNote } from "@/hooks/useVoiceNote";
+import { currentLanguage } from "@/i18n";
+import { select, warning } from "@/lib/haptics";
 import {
   Card,
   enterUp,
@@ -21,14 +33,69 @@ import {
 
 const SUGGESTION_KEYS = ["chat.suggestion1", "chat.suggestion2", "chat.suggestion3"];
 
+/** BCP-47 voices for the three app languages. */
+const SPEECH_LOCALES: Record<string, string> = {
+  en: "en-US",
+  te: "te-IN",
+  hi: "hi-IN",
+};
+
+/** Recordings shorter than this are taps, not questions — discard them. */
+const MIN_VOICE_MS = 700;
+/** Safety stop so a forgotten recording can't run forever. */
+const MAX_VOICE_MS = 180_000;
+
+/** 1.5s breathing dot while VITA listens (static under reduced motion). */
+function ListeningDot() {
+  const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
+  const opacity = useSharedValue(0.35);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      opacity.value = 1;
+      return;
+    }
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 750, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.35, { duration: 750, easing: Easing.inOut(Easing.quad) }),
+      ),
+      -1,
+    );
+  }, [opacity, reducedMotion]);
+
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <Animated.View
+      style={[
+        { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.sageBright },
+        style,
+      ]}
+    />
+  );
+}
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 export default function ChatScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const { messages, thinking, error, send, retry } = useChat();
+  const { messages, thinking, error, send, sendVoice, retry } = useChat();
+  const voice = useVoiceNote();
   const [draft, setDraft] = useState("");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const listRef = useRef<FlashListRef<ChatMessage>>(null);
+  const spokenIds = useRef(new Set<string>());
 
   const canSend = draft.trim() !== "" && !thinking;
+  const showMic = draft.trim() === "" && !thinking;
 
   // Keep the latest messages in view when the keyboard shrinks the list.
   useEffect(() => {
@@ -38,10 +105,59 @@ export default function ChatScreen() {
     return () => sub.remove();
   }, []);
 
+  // Voice answers are read aloud once, in the user's language.
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (
+      last !== undefined &&
+      last.role === "assistant" &&
+      last.viaVoice === true &&
+      !spokenIds.current.has(last.id)
+    ) {
+      spokenIds.current.add(last.id);
+      Speech.speak(last.content, {
+        language: SPEECH_LOCALES[currentLanguage()] ?? "en-US",
+      });
+    }
+  }, [messages]);
+
+  // Leaving the screen mid-sentence should not leave a voice talking.
+  useEffect(() => () => void Speech.stop(), []);
+
+  // Safety stop for forgotten recordings.
+  useEffect(() => {
+    if (voice.recording && voice.durationMs >= MAX_VOICE_MS) {
+      void stopAndSend();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice.durationMs, voice.recording]);
+
   const submit = (): void => {
     if (!canSend) return;
     send(draft);
     setDraft("");
+  };
+
+  const startRecording = async (): Promise<void> => {
+    if (thinking || voice.recording) return;
+    void Speech.stop();
+    setVoiceError(null);
+    select();
+    const granted = await voice.start();
+    if (!granted) setVoiceError(t("chat.voiceDenied"));
+  };
+
+  const stopAndSend = async (): Promise<void> => {
+    const duration = voice.durationMs;
+    select();
+    const uri = await voice.stop();
+    if (uri === null || duration < MIN_VOICE_MS) return;
+    sendVoice(uri, t("chat.voiceNote"));
+  };
+
+  const discardRecording = async (): Promise<void> => {
+    warning();
+    await voice.cancel();
   };
 
   return (
@@ -132,61 +248,151 @@ export default function ChatScreen() {
           />
         )}
 
-        {error !== null && (
+        {(error !== null || voiceError !== null) && (
           <Animated.View entering={enterUp(0)} style={{ paddingBottom: 8 }}>
             <Card style={{ backgroundColor: colors.coralSoft, borderColor: "transparent" }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                 <Text variant="caption" tone="coral" style={{ flex: 1 }}>
-                  {error}
+                  {error ?? voiceError}
                 </Text>
-                <PressableScale
-                  accessibilityLabel={t("chat.retrySend")}
-                  onPress={retry}
-                  style={{ paddingHorizontal: 8, justifyContent: "center" }}
-                >
-                  <Text variant="caption" tone="sage">
-                    {t("common.tryAgain")}
-                  </Text>
-                </PressableScale>
+                {error !== null ? (
+                  <PressableScale
+                    accessibilityLabel={t("chat.retrySend")}
+                    onPress={retry}
+                    style={{ paddingHorizontal: 8, justifyContent: "center" }}
+                  >
+                    <Text variant="caption" tone="sage">
+                      {t("common.tryAgain")}
+                    </Text>
+                  </PressableScale>
+                ) : (
+                  <PressableScale
+                    accessibilityLabel={t("common.close")}
+                    onPress={() => setVoiceError(null)}
+                    style={{ paddingHorizontal: 8, justifyContent: "center" }}
+                  >
+                    <Text variant="caption" tone="sage">
+                      {t("common.gotIt")}
+                    </Text>
+                  </PressableScale>
+                )}
               </View>
             </Card>
           </Animated.View>
         )}
 
-        <Animated.View
-          entering={enterUp(1)}
-          style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 8 }}
-        >
-          <Input
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t("chat.placeholder")}
-            returnKeyType="send"
-            onSubmitEditing={submit}
-            editable={!thinking}
-            style={{ flex: 1 }}
-            accessibilityLabel={t("chat.placeholder")}
-          />
-          <PressableScale
-            accessibilityLabel={t("chat.send")}
-            onPress={submit}
-            disabled={!canSend}
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: radius.md,
-              backgroundColor: canSend ? colors.sage : colors.sageSoft,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+        {voice.recording ? (
+          <Animated.View
+            entering={enterUp(0)}
+            style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 8 }}
           >
-            <ArrowUp
-              size={22}
-              strokeWidth={1.5}
-              color={canSend ? colors.onSage : colors.sage}
+            <PressableScale
+              accessibilityLabel={t("chat.voiceCancel")}
+              onPress={() => void discardRecording()}
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: radius.md,
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.hairline,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <X size={20} strokeWidth={1.5} color={colors.inkSoft} />
+            </PressableScale>
+
+            <View
+              style={{
+                flex: 1,
+                height: 52,
+                borderRadius: radius.md,
+                backgroundColor: colors.sageSoft,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 10,
+                paddingHorizontal: 16,
+              }}
+            >
+              <ListeningDot />
+              <Text variant="label" tone="sage" style={{ flex: 1 }}>
+                {t("chat.listening")}
+              </Text>
+              <Text variant="caption" tone="soft">
+                {formatDuration(voice.durationMs)}
+              </Text>
+            </View>
+
+            <PressableScale
+              accessibilityLabel={t("chat.voiceStop")}
+              onPress={() => void stopAndSend()}
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: radius.md,
+                backgroundColor: colors.sage,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <ArrowUp size={22} strokeWidth={1.5} color={colors.onSage} />
+            </PressableScale>
+          </Animated.View>
+        ) : (
+          <Animated.View
+            entering={enterUp(1)}
+            style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 8 }}
+          >
+            <Input
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={t("chat.placeholder")}
+              returnKeyType="send"
+              onSubmitEditing={submit}
+              editable={!thinking}
+              style={{ flex: 1 }}
+              accessibilityLabel={t("chat.placeholder")}
             />
-          </PressableScale>
-        </Animated.View>
+            {showMic ? (
+              <PressableScale
+                accessibilityLabel={t("chat.voiceStart")}
+                onPress={() => void startRecording()}
+                disabled={thinking}
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: radius.md,
+                  backgroundColor: colors.sageSoft,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Mic size={22} strokeWidth={1.5} color={colors.sage} />
+              </PressableScale>
+            ) : (
+              <PressableScale
+                accessibilityLabel={t("chat.send")}
+                onPress={submit}
+                disabled={!canSend}
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: radius.md,
+                  backgroundColor: canSend ? colors.sage : colors.sageSoft,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <ArrowUp
+                  size={22}
+                  strokeWidth={1.5}
+                  color={canSend ? colors.onSage : colors.sage}
+                />
+              </PressableScale>
+            )}
+          </Animated.View>
+        )}
       </KeyboardAvoidingView>
     </Screen>
   );

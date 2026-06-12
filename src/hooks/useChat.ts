@@ -1,12 +1,15 @@
+import { t } from "i18next";
 import { useCallback, useRef, useState } from "react";
 
-import { type ChatCitation, type ChatTurn, sendChat } from "@/lib/chat";
+import { type ChatCitation, type ChatTurn, sendChat, sendVoiceChat } from "@/lib/chat";
 
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   citations?: ChatCitation[];
+  /** True when this turn travelled by voice — the answer is read aloud. */
+  viaVoice?: boolean;
 }
 
 interface UseChatResult {
@@ -14,11 +17,19 @@ interface UseChatResult {
   thinking: boolean;
   error: string | null;
   send: (text: string) => void;
+  /** Send a recorded voice note; `fallbackLabel` stands in for an empty transcript. */
+  sendVoice: (audioUri: string, fallbackLabel: string) => void;
   retry: () => void;
 }
 
 let nextId = 0;
 const newId = (): string => `msg-${++nextId}`;
+
+interface PendingVoice {
+  uri: string;
+  fallbackLabel: string;
+  turns: ChatTurn[];
+}
 
 /**
  * In-session chat state. History lives in memory only — the conversation
@@ -29,8 +40,9 @@ export function useChat(): UseChatResult {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [thinking, setThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The turns awaiting an answer, kept for retry after a failure.
+  // Whatever is awaiting an answer, kept for retry after a failure.
   const pendingTurns = useRef<ChatTurn[] | null>(null);
+  const pendingVoice = useRef<PendingVoice | null>(null);
 
   const run = useCallback(async (turns: ChatTurn[]): Promise<void> => {
     setThinking(true);
@@ -43,7 +55,36 @@ export function useChat(): UseChatResult {
         { id: newId(), role: "assistant", content: reply.answer, citations: reply.citations },
       ]);
     } catch {
-      setError("VITA couldn't answer just now. Check that you're online and try again.");
+      setError(t("chat.error"));
+    } finally {
+      setThinking(false);
+    }
+  }, []);
+
+  const runVoice = useCallback(async (pending: PendingVoice): Promise<void> => {
+    setThinking(true);
+    setError(null);
+    try {
+      const reply = await sendVoiceChat(pending.uri, pending.turns);
+      pendingVoice.current = null;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: newId(),
+          role: "user",
+          content: reply.transcript !== "" ? reply.transcript : pending.fallbackLabel,
+          viaVoice: true,
+        },
+        {
+          id: newId(),
+          role: "assistant",
+          content: reply.answer,
+          citations: reply.citations,
+          viaVoice: true,
+        },
+      ]);
+    } catch {
+      setError(t("chat.error"));
     } finally {
       setThinking(false);
     }
@@ -59,16 +100,35 @@ export function useChat(): UseChatResult {
       );
       setMessages((prev) => [...prev, userMessage]);
       pendingTurns.current = turns;
+      pendingVoice.current = null;
       void run(turns);
     },
     [messages, run, thinking],
   );
 
+  const sendVoice = useCallback(
+    (audioUri: string, fallbackLabel: string): void => {
+      if (thinking) return;
+      const pending: PendingVoice = {
+        uri: audioUri,
+        fallbackLabel,
+        turns: messages.map((m): ChatTurn => ({ role: m.role, content: m.content })),
+      };
+      pendingVoice.current = pending;
+      pendingTurns.current = null;
+      void runVoice(pending);
+    },
+    [messages, runVoice, thinking],
+  );
+
   const retry = useCallback((): void => {
-    if (pendingTurns.current !== null && !thinking) {
+    if (thinking) return;
+    if (pendingVoice.current !== null) {
+      void runVoice(pendingVoice.current);
+    } else if (pendingTurns.current !== null) {
       void run(pendingTurns.current);
     }
-  }, [run, thinking]);
+  }, [run, runVoice, thinking]);
 
-  return { messages, thinking, error, send, retry };
+  return { messages, thinking, error, send, sendVoice, retry };
 }

@@ -77,6 +77,19 @@ class ChatAnswer(BaseModel):
     )
 
 
+class VoiceAnswer(ChatAnswer):
+    """ChatAnswer plus a transcript — the model hears the user's audio and
+    must both transcribe and answer in one structured response."""
+
+    transcript: str = Field(
+        max_length=1000,
+        description=(
+            "Faithful transcription of the user's spoken question, in the "
+            "language they spoke. Empty string if the audio is unintelligible."
+        ),
+    )
+
+
 class ExtractionResult(BaseModel):
     """Structured output schema enforced on the Gemini response."""
 

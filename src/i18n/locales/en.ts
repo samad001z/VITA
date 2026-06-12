@@ -84,6 +84,14 @@ const en = {
     retrySend: "Retry sending",
     ask: "Ask: {{suggestion}}",
     openReport: "Open report: {{title}}",
+    error: "VITA couldn't answer just now. Check that you're online and try again.",
+    voiceStart: "Ask by voice",
+    voiceStop: "Stop and send",
+    voiceCancel: "Discard recording",
+    listening: "Listening…",
+    voiceNote: "Voice question",
+    voiceDenied:
+      "VITA needs microphone access for voice questions. You can enable it in system settings.",
   },
   report: {
     back: "Back to timeline",

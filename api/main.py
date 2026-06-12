@@ -12,18 +12,19 @@ one user's data under another user's account.
 
 import datetime as dt
 import hashlib
+import json
 import logging
 import os
 import secrets
 from typing import Literal
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from supabase import Client, create_client
 
-from chat import answer_question, build_context
+from chat import answer_question, answer_voice, build_context
 from extraction import extract_report
 from schemas import ExtractionResult
 
@@ -91,6 +92,10 @@ class ChatResponse(BaseModel):
     citations: list[Citation]
 
 
+class VoiceChatResponse(ChatResponse):
+    transcript: str
+
+
 class ShareCreateResponse(BaseModel):
     share_url: str
     expires_at: str
@@ -137,13 +142,10 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/chat", response_model=ChatResponse)
-def chat(body: ChatRequest, user_id: str = Depends(_verify_user)) -> ChatResponse:
-    db = _service_client()
-
-    # 1. Load the user's timeline and observations as grounding context.
-    # select("*") keeps this working whether or not the Phase 8 migration
-    # (metric column) has been applied yet.
+def _load_grounding(db: Client, user_id: str) -> tuple[list[dict], str]:
+    """Load the user's timeline + observations and render the grounding
+    context. Returns (events, context). select("*") keeps this working
+    whether or not the Phase 8 migration (metric column) has been applied."""
     events = (
         db.table("timeline_events")
         .select("*")
@@ -174,9 +176,29 @@ def chat(body: ChatRequest, user_id: str = Depends(_verify_user)) -> ChatRespons
     by_report: dict[str, list[dict]] = {}
     for obs in observations:
         by_report.setdefault(obs["report_id"], []).append(obs)
-    context = build_context(events, by_report, rollups)
+    return events, build_context(events, by_report, rollups)
 
-    # 2. Grounded Gemini turn, Pydantic-validated.
+
+def _validated_citations(events: list[dict], citation_report_ids: list[str]) -> list[Citation]:
+    """Only cite reports that really belong to this user's timeline."""
+    event_by_report = {e["report_id"]: e for e in events if e["report_id"] is not None}
+    return [
+        Citation(
+            report_id=rid,
+            title=event_by_report[rid]["title"],
+            occurred_at=event_by_report[rid]["occurred_at"],
+        )
+        for rid in dict.fromkeys(citation_report_ids)
+        if rid in event_by_report
+    ]
+
+
+@app.post("/chat", response_model=ChatResponse)
+def chat(body: ChatRequest, user_id: str = Depends(_verify_user)) -> ChatResponse:
+    db = _service_client()
+    events, context = _load_grounding(db, user_id)
+
+    # Grounded Gemini turn, Pydantic-validated.
     try:
         result = answer_question(
             [m.model_dump() for m in body.messages], context, body.language
@@ -185,19 +207,61 @@ def chat(body: ChatRequest, user_id: str = Depends(_verify_user)) -> ChatRespons
         logger.exception("Chat failed for user %s", user_id)
         raise HTTPException(status_code=502, detail="Chat failed") from exc
 
-    # 3. Only cite reports that really belong to this user's timeline.
-    event_by_report = {e["report_id"]: e for e in events if e["report_id"] is not None}
-    citations = [
-        Citation(
-            report_id=rid,
-            title=event_by_report[rid]["title"],
-            occurred_at=event_by_report[rid]["occurred_at"],
-        )
-        for rid in dict.fromkeys(result.citation_report_ids)
-        if rid in event_by_report
-    ]
+    return ChatResponse(
+        answer=result.answer,
+        citations=_validated_citations(events, result.citation_report_ids),
+    )
 
-    return ChatResponse(answer=result.answer, citations=citations)
+
+_VOICE_MAX_BYTES = 4 * 1024 * 1024  # ~8 min of 64kbps mono AAC; serverless-safe
+_VOICE_MIMES = {"audio/mp4", "audio/m4a", "audio/x-m4a", "audio/aac", "audio/mpeg", "audio/wav"}
+_history_adapter = TypeAdapter(list[ChatMessage])
+
+
+@app.post("/voice", response_model=VoiceChatResponse)
+async def voice_chat(
+    audio: UploadFile = File(...),
+    history: str = Form("[]"),
+    language: str = Form("en"),
+    user_id: str = Depends(_verify_user),
+) -> VoiceChatResponse:
+    """Voice turn: transcribe the spoken question and answer it, grounded in
+    the user's records, in a single Gemini call. `history` is the prior text
+    turns as JSON; the audio clip itself is the newest user turn."""
+    if language not in ("en", "te", "hi"):
+        language = "en"
+    try:
+        prior_turns = _history_adapter.validate_python(json.loads(history))[:30]
+    except (json.JSONDecodeError, ValidationError) as exc:
+        raise HTTPException(status_code=422, detail="Bad history") from exc
+
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=422, detail="Empty audio")
+    if len(audio_bytes) > _VOICE_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Audio too long")
+    mime = audio.content_type if audio.content_type in _VOICE_MIMES else "audio/mp4"
+
+    db = _service_client()
+    events, context = _load_grounding(db, user_id)
+
+    try:
+        result = answer_voice(
+            audio_bytes,
+            mime,
+            [m.model_dump() for m in prior_turns],
+            context,
+            language,
+        )
+    except Exception as exc:
+        logger.exception("Voice chat failed for user %s", user_id)
+        raise HTTPException(status_code=502, detail="Voice chat failed") from exc
+
+    return VoiceChatResponse(
+        answer=result.answer,
+        citations=_validated_citations(events, result.citation_report_ids),
+        transcript=result.transcript.strip(),
+    )
 
 
 SHARE_TTL_MINUTES = 30

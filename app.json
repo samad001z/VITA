@@ -60,7 +60,13 @@
         }
       ],
       "./plugins/withHealthConnect",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "VITA uses the microphone so you can ask about your health by voice."
+        }
+      ]
     ]
   }
 }
