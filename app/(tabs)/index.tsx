@@ -13,12 +13,13 @@ import { METRIC_ICONS } from "@/components/metricIcons";
 import { QuickLogSheet } from "@/components/QuickLogSheet";
 import { ReportCard } from "@/components/ReportCard";
 import { TimelineEventCard } from "@/components/TimelineEventCard";
+import { useEnabledMetrics } from "@/hooks/useEnabledMetrics";
 import { type MetricInsight, useInsights } from "@/hooks/useInsights";
 import { useTimeline } from "@/hooks/useTimeline";
 import { currentLocale } from "@/i18n";
 import { type ReportRow, type TimelineEventRow } from "@/lib/database.types";
 import { success, warning } from "@/lib/haptics";
-import { type HealthMetric, localDay } from "@/lib/health/types";
+import { ALL_METRICS, type HealthMetric, localDay } from "@/lib/health/types";
 import { type PickedFile, requestExtraction, uploadReport } from "@/lib/reports";
 import { displayName } from "@/lib/user";
 import { useAuth } from "@/providers/AuthProvider";
@@ -97,6 +98,11 @@ function metricDecimals(insight: MetricInsight): number {
   return insight.metric === "spo2" ? 1 : 0;
 }
 
+interface MetricTileItem {
+  metric: HealthMetric;
+  insight: MetricInsight | null;
+}
+
 /** Cumulative metrics that read well as a week of bars, by preference. */
 const WEEK_METRICS: HealthMetric[] = ["steps", "active_energy", "sleep_minutes"];
 
@@ -145,6 +151,7 @@ export default function HomeScreen() {
   const { introDone } = useLaunch();
   const { events, pending, stats, error, refresh } = useTimeline();
   const { insights, refresh: refreshInsights } = useInsights();
+  const enabledMetrics = useEnabledMetrics();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [quickLogOpen, setQuickLogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -176,10 +183,14 @@ export default function HomeScreen() {
   const loading = events === null || pending === null;
   const hasAnything =
     !loading &&
-    (events.length > 0 || pending.length > 0 || uploading || (insights?.length ?? 0) > 0);
+    (events.length > 0 ||
+      pending.length > 0 ||
+      uploading ||
+      (insights?.length ?? 0) > 0 ||
+      enabledMetrics.length > 0);
 
   const reportCount = events?.filter((e) => e.event_type === "report").length ?? 0;
-  const metricCount = insights?.length ?? 0;
+  const metricCount = Math.max(insights?.length ?? 0, enabledMetrics.length);
   const totalValues = Object.values(stats).reduce((sum, s) => sum + s.count, 0);
   const totalFlagged = Object.values(stats).reduce((sum, s) => sum + s.flagged, 0);
 
@@ -304,6 +315,7 @@ export default function HomeScreen() {
           ListHeaderComponent={
             <HomeHeader
               insights={insights}
+              enabledMetrics={enabledMetrics}
               reportCount={reportCount}
               metricCount={metricCount}
               totalValues={totalValues}
@@ -358,6 +370,7 @@ export default function HomeScreen() {
 
 interface HomeHeaderProps {
   insights: MetricInsight[] | null;
+  enabledMetrics: HealthMetric[];
   reportCount: number;
   metricCount: number;
   totalValues: number;
@@ -370,6 +383,7 @@ interface HomeHeaderProps {
 
 function HomeHeader({
   insights,
+  enabledMetrics,
   reportCount,
   metricCount,
   totalValues,
@@ -382,14 +396,25 @@ function HomeHeader({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const week = useMemo(() => buildWeek(insights), [insights]);
+  // One tile per shared metric, always — with data when it exists, a quiet
+  // awaiting state until the first sync lands something.
   const rows = useMemo(() => {
-    const list = insights ?? [];
-    const chunked: MetricInsight[][] = [];
+    const list: MetricTileItem[] = [];
+    const seen = new Set<HealthMetric>();
+    for (const metric of ALL_METRICS) {
+      if (!enabledMetrics.includes(metric)) continue;
+      list.push({ metric, insight: insights?.find((i) => i.metric === metric) ?? null });
+      seen.add(metric);
+    }
+    for (const insight of insights ?? []) {
+      if (!seen.has(insight.metric)) list.push({ metric: insight.metric, insight });
+    }
+    const chunked: MetricTileItem[][] = [];
     for (let i = 0; i < list.length; i += 2) {
       chunked.push(list.slice(i, i + 2));
     }
     return chunked;
-  }, [insights]);
+  }, [insights, enabledMetrics]);
 
   const metricLabel = (metric: HealthMetric): string => t(`metrics.${metric}.label`);
 
@@ -533,13 +558,25 @@ function HomeHeader({
               entering={enterUp(rowIndex + 1)}
               style={{ flexDirection: "row", gap: 12 }}
             >
-              {row.map((insight) => {
-                const Icon = METRIC_ICONS[insight.metric];
+              {row.map(({ metric, insight }) => {
+                const Icon = METRIC_ICONS[metric];
+                const icon = <Icon size={15} strokeWidth={1.5} color={colors.sage} />;
+                if (insight === null) {
+                  return (
+                    <MetricTile
+                      key={metric}
+                      icon={icon}
+                      label={metricLabel(metric)}
+                      pending
+                      pendingLabel={t("home.metricWaiting")}
+                    />
+                  );
+                }
                 return (
                   <MetricTile
-                    key={insight.metric}
-                    icon={<Icon size={15} strokeWidth={1.5} color={colors.sage} />}
-                    label={metricLabel(insight.metric)}
+                    key={metric}
+                    icon={icon}
+                    label={metricLabel(metric)}
                     value={insight.latest}
                     unit={insight.metric === "sleep_minutes" ? "" : insight.unit}
                     decimals={metricDecimals(insight)}

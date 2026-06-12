@@ -18,11 +18,15 @@ import { useTheme } from "./ThemeContext";
 export interface MetricTileProps {
   icon: React.ReactNode;
   label: string;
-  value: number;
-  unit: string;
+  value?: number;
+  unit?: string;
   decimals?: number;
   /** Last ~14 daily values for the sparkline. */
-  series: number[];
+  series?: number[];
+  /** Connected but no data yet — shows a quiet awaiting state. */
+  pending?: boolean;
+  /** Caption under the pending dash, e.g. "Awaiting first sync". */
+  pendingLabel?: string;
   /** Short comparison line, e.g. "+4% vs your normal". */
   delta?: string;
   deltaTone?: "soft" | "sage" | "gold" | "coral";
@@ -65,6 +69,8 @@ export function MetricTile({
   unit,
   decimals = 0,
   series,
+  pending = false,
+  pendingLabel,
   delta,
   deltaTone = "soft",
   live = false,
@@ -90,24 +96,41 @@ export function MetricTile({
           <Text variant="caption" tone="soft" style={{ flex: 1 }} numberOfLines={1}>
             {label}
           </Text>
-          {live && <LiveDot />}
+          {live && !pending && <LiveDot />}
         </View>
-        <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4 }}>
-          <AnimatedNumber
-            value={value}
-            decimals={decimals}
-            format={format}
-            variant="heading"
-          />
-          <Text variant="caption" tone="faint">
-            {unit}
-          </Text>
-        </View>
-        <Sparkline series={series} />
-        {delta !== undefined && (
-          <Text variant="caption" tone={deltaTone} numberOfLines={1}>
-            {delta}
-          </Text>
+        {pending ? (
+          <>
+            <Text variant="heading" tone="faint">
+              —
+            </Text>
+            {/* Quiet placeholder track where the sparkline will live. */}
+            <View style={{ height: 2, borderRadius: 1, backgroundColor: colors.fill }} />
+            {pendingLabel !== undefined && (
+              <Text variant="caption" tone="faint" numberOfLines={1}>
+                {pendingLabel}
+              </Text>
+            )}
+          </>
+        ) : (
+          <>
+            <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4 }}>
+              <AnimatedNumber
+                value={value ?? 0}
+                decimals={decimals}
+                format={format}
+                variant="heading"
+              />
+              <Text variant="caption" tone="faint">
+                {unit}
+              </Text>
+            </View>
+            <Sparkline series={series ?? []} />
+            {delta !== undefined && (
+              <Text variant="caption" tone={deltaTone} numberOfLines={1}>
+                {delta}
+              </Text>
+            )}
+          </>
         )}
       </View>
     </Card>

@@ -1,13 +1,15 @@
+import { Check } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 
 import { METRIC_ICONS } from "@/components/metricIcons";
+import { currentLocale } from "@/i18n";
 import { registerHealthSyncTask, unregisterHealthSyncTask } from "@/lib/health/backgroundTask";
 import { getHealthProvider } from "@/lib/health/provider";
-import { getEnabledMetrics, setEnabledMetrics } from "@/lib/health/settings";
+import { getEnabledMetrics, getLastSyncAt, setEnabledMetrics } from "@/lib/health/settings";
 import { ALL_METRICS, type HealthMetric } from "@/lib/health/types";
-import { Button, Sheet, Text, Toggle, useTheme } from "@/ui";
+import { Button, Sheet, Skeleton, Text, Toggle, useTheme } from "@/ui";
 
 export interface HealthSheetProps {
   visible: boolean;
@@ -17,22 +19,32 @@ export interface HealthSheetProps {
 }
 
 /**
- * Calm consent: each metric is individually toggleable, with a plain-language
- * reason for wanting it. Nothing is requested until the user taps Connect.
+ * Calm consent. First visit: each metric individually toggleable with a
+ * plain-language reason, nothing requested until Connect. Once connected the
+ * sheet owns the truth: a status card, the live toggles, Save changes, and
+ * an explicit Disconnect.
  */
 export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const provider = getHealthProvider();
+  // null = still reading settings; prevents the toggles flashing all-on.
+  const [enabled, setEnabled] = useState<HealthMetric[] | null>(null);
+  const [lastSync, setLastSync] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<HealthMetric>>(new Set(ALL_METRICS));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const connected = (enabled?.length ?? 0) > 0;
+
   useEffect(() => {
     if (!visible) return;
     setError(null);
-    void getEnabledMetrics().then((enabled) => {
-      if (enabled.length > 0) setSelected(new Set(enabled));
+    setEnabled(null);
+    void Promise.all([getEnabledMetrics(), getLastSyncAt()]).then(([metrics, syncedAt]) => {
+      setEnabled(metrics);
+      setLastSync(syncedAt);
+      setSelected(new Set(metrics.length > 0 ? metrics : ALL_METRICS));
     });
   }, [visible]);
 
@@ -45,22 +57,34 @@ export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
     });
   };
 
-  const connect = async (): Promise<void> => {
+  const disconnect = async (): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      await setEnabledMetrics([]);
+      await unregisterHealthSyncTask();
+      onChanged();
+      onClose();
+    } catch {
+      setError(t("healthSheet.errGeneric"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const save = async (): Promise<void> => {
     if (provider === null) return;
     const metrics = ALL_METRICS.filter((m) => selected.has(m));
+    if (metrics.length === 0) {
+      await disconnect();
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const available = await provider.isAvailable();
       if (!available) {
         setError(t("healthSheet.errUnavailable"));
-        return;
-      }
-      if (metrics.length === 0) {
-        await setEnabledMetrics([]);
-        await unregisterHealthSyncTask();
-        onChanged();
-        onClose();
         return;
       }
       const granted = await provider.requestPermissions(metrics);
@@ -79,6 +103,18 @@ export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
     }
   };
 
+  const lastSyncLabel =
+    lastSync !== null
+      ? t("healthSheet.lastSynced", {
+          time: new Date(lastSync).toLocaleString(currentLocale(), {
+            day: "numeric",
+            month: "short",
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+        })
+      : t("healthSheet.firstSyncPending");
+
   return (
     <Sheet visible={visible} onClose={onClose} title={t("healthSheet.title")}>
       {provider === null ? (
@@ -91,11 +127,58 @@ export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
           </Text>
           <Button title={t("common.gotIt")} variant="secondary" onPress={onClose} />
         </View>
+      ) : enabled === null ? (
+        <View style={{ gap: 14, paddingVertical: 8, paddingBottom: 16 }}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <Skeleton width={40} height={40} rounded="lg" />
+              <View style={{ flex: 1, gap: 6 }}>
+                <Skeleton width="48%" height={13} />
+                <Skeleton width="72%" height={10} />
+              </View>
+            </View>
+          ))}
+        </View>
       ) : (
         <View style={{ gap: 4, paddingBottom: 4 }}>
-          <Text variant="label" tone="soft" style={{ lineHeight: 22, marginBottom: 12 }}>
-            {t("healthSheet.intro")}
-          </Text>
+          {connected ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                backgroundColor: colors.sageSoft,
+                borderRadius: 14,
+                padding: 14,
+                marginBottom: 12,
+              }}
+            >
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: colors.sage,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Check size={16} strokeWidth={2} color={colors.onSage} />
+              </View>
+              <View style={{ flex: 1, gap: 1 }}>
+                <Text variant="label" tone="sage">
+                  {t("profile.healthNMetrics", { count: enabled.length })}
+                </Text>
+                <Text variant="caption" tone="soft">
+                  {lastSyncLabel}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <Text variant="label" tone="soft" style={{ lineHeight: 22, marginBottom: 12 }}>
+              {t("healthSheet.intro")}
+            </Text>
+          )}
           <View style={{ gap: 2 }}>
             {ALL_METRICS.map((metric) => {
               const Icon = METRIC_ICONS[metric];
@@ -145,10 +228,19 @@ export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
           )}
           <View style={{ marginTop: 16, gap: 8 }}>
             <Button
-              title={selected.size === 0 ? t("healthSheet.disconnect") : t("healthSheet.connect")}
+              title={connected ? t("healthSheet.update") : t("healthSheet.connect")}
               loading={busy}
-              onPress={() => void connect()}
+              disabled={!connected && selected.size === 0}
+              onPress={() => void save()}
             />
+            {connected && (
+              <Button
+                title={t("healthSheet.disconnect")}
+                variant="ghost"
+                disabled={busy}
+                onPress={() => void disconnect()}
+              />
+            )}
             <Text variant="caption" tone="faint" style={{ textAlign: "center" }}>
               {t("healthSheet.footer")}
             </Text>
