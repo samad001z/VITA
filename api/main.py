@@ -286,8 +286,9 @@ async def voice_chat(
 
 
 SHARE_TTL_MINUTES = 30
+# Lives inside api/ so serverless bundles always include it.
 _DOCTOR_PAGE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "doctor-web", "index.html"
+    os.path.dirname(os.path.abspath(__file__)), "doctor-web", "index.html"
 )
 
 

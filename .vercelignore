@@ -1,7 +1,6 @@
-# Deploy only the FastAPI service and the doctor share page.
+# Deploy only the FastAPI service (which includes the doctor share page).
 /*
 !/api
-!/doctor-web
 !/vercel.json
 
 # Never upload local-only API artifacts.
