@@ -16,12 +16,17 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import { CrashScreen } from "@/components/CrashScreen";
 import { LaunchOverlay, LaunchProvider } from "@/components/LaunchSequence";
 import { initI18n } from "@/i18n";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { SheetProvider, SheetStage, ThemeProvider, useTheme } from "@/ui";
 
 void SplashScreen.preventAutoHideAsync();
+
+// Any uncaught render error below the root lands on the branded crash
+// screen with a reload action instead of a frozen tree.
+export { CrashScreen as ErrorBoundary };
 
 function RootNavigator() {
   const { isLoading } = useAuth();

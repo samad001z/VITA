@@ -5,6 +5,11 @@ import type en from "./en";
  * parentheses — because reports themselves are usually in English.
  */
 const te: typeof en = {
+  crash: {
+    title: "ఏదో తేడా జరిగింది",
+    body: "మీ డేటా సురక్షితం. స్క్రీన్‌ను రీలోడ్ చేసి ఎక్కడ ఆగారో అక్కడి నుంచి కొనసాగండి.",
+    retry: "రీలోడ్ చేయండి",
+  },
   common: {
     close: "మూసివేయండి",
     tryAgain: "మళ్లీ ప్రయత్నించండి",

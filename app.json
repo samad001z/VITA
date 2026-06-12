@@ -2,7 +2,7 @@
   "expo": {
     "name": "VITA",
     "slug": "vita",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "scheme": "vita",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,6 +14,7 @@
     },
     "android": {
       "package": "com.vita.health",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#FAFAF8",
         "foregroundImage": "./assets/android-icon-foreground.png",

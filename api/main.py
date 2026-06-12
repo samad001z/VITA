@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import secrets
+import tempfile
 from typing import Literal
 
 from dotenv import load_dotenv
@@ -36,6 +37,16 @@ if _creds and not os.path.isabs(_creds):
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), _creds
     )
+
+# Serverless hosts have no credentials file on disk — the service-account
+# JSON arrives in GOOGLE_SA_JSON and is materialized into the temp dir so
+# google-auth can read a file path as usual.
+_sa_json = os.environ.get("GOOGLE_SA_JSON")
+if _sa_json and not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+    _sa_path = os.path.join(tempfile.gettempdir(), "sa-vertex.json")
+    with open(_sa_path, "w", encoding="utf-8") as _fh:
+        _fh.write(_sa_json)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _sa_path
 
 logger = logging.getLogger("vita.api")
 logging.basicConfig(level=logging.INFO)
@@ -138,8 +149,18 @@ class ExtractResponse(BaseModel):
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict[str, object]:
+    # Presence booleans only — never values. Lets a fresh deployment be
+    # checked for wiring without leaking configuration.
+    return {
+        "status": "ok",
+        "config": {
+            "supabase": bool(os.environ.get("SUPABASE_URL"))
+            and bool(os.environ.get("SUPABASE_SECRET_KEY")),
+            "vertex": bool(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"))
+            and bool(os.environ.get("GOOGLE_CLOUD_PROJECT")),
+        },
+    }
 
 
 def _load_grounding(db: Client, user_id: str) -> tuple[list[dict], str]:
@@ -307,7 +328,11 @@ def create_share(request: Request, user_id: str = Depends(_verify_user)) -> Shar
         }
     ).execute()
 
+    # Behind a TLS-terminating proxy the ASGI scope says http; the QR link
+    # must carry the real public scheme or phones will refuse to open it.
     base = str(request.base_url).rstrip("/")
+    if request.headers.get("x-forwarded-proto") == "https" and base.startswith("http:"):
+        base = "https:" + base[len("http:"):]
     return ShareCreateResponse(share_url=f"{base}/share/{token}", expires_at=expires.isoformat())
 
 

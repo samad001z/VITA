@@ -53,5 +53,9 @@ __pycache__/
 sa-vertex.json
 api/sa-vertex.json
 
+# vercel deploy config carries runtime secrets — never commit
+vercel.json
+.vercel/
+
 # supabase cli local state
 supabase/.temp/

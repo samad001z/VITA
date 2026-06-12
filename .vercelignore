@@ -1,0 +1,12 @@
+# Deploy only the FastAPI service and the doctor share page.
+/*
+!/api
+!/doctor-web
+!/vercel.json
+
+# Never upload local-only API artifacts.
+/api/.venv
+/api/.env
+/api/sa-vertex.json
+/api/__pycache__
+/api/dev_otp.py

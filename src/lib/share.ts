@@ -1,11 +1,10 @@
+import { API_URL, fetchWithTimeout } from "./http";
 import { supabase } from "./supabase";
 
 export interface ShareGrant {
   shareUrl: string;
   expiresAt: string;
 }
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
 
 /**
  * Mint a single-use 30-minute doctor share. The server revokes any previous
@@ -16,10 +15,14 @@ export async function createShare(): Promise<ShareGrant> {
   const token = data.session?.access_token;
   if (token === undefined) throw new Error("Not signed in");
 
-  const response = await fetch(`${API_URL}/share`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}` },
-  });
+  const response = await fetchWithTimeout(
+    `${API_URL}/share`,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+    },
+    20_000,
+  );
   if (!response.ok) {
     throw new Error(`Share request failed (${response.status})`);
   }

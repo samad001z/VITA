@@ -4,6 +4,11 @@
  * other languages stay bilingual because reports are usually in English.
  */
 const en = {
+  crash: {
+    title: "Something went wrong",
+    body: "Your data is safe. Reload the screen to pick up where you left off.",
+    retry: "Reload",
+  },
   common: {
     close: "Close",
     tryAgain: "Try again",

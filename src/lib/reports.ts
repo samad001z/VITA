@@ -3,6 +3,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 
+import { API_URL, fetchWithTimeout } from "./http";
 import { supabase } from "./supabase";
 
 export interface PickedFile {
@@ -108,22 +109,25 @@ export async function uploadReport(file: PickedFile): Promise<string> {
   return reportId;
 }
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
-
 /** Ask the FastAPI service to extract a report. Throws if unreachable. */
 export async function requestExtraction(reportId: string): Promise<void> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (token === undefined) throw new Error("Not signed in");
 
-  const response = await fetch(`${API_URL}/extract`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${token}`,
+  // Extraction reads the file and runs a long Gemini call; give it room.
+  const response = await fetchWithTimeout(
+    `${API_URL}/extract`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ report_id: reportId }),
     },
-    body: JSON.stringify({ report_id: reportId }),
-  });
+    120_000,
+  );
   if (!response.ok) {
     throw new Error(`Extraction request failed (${response.status})`);
   }

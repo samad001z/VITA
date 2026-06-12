@@ -5,6 +5,11 @@ import type en from "./en";
  * parentheses — because reports themselves are usually in English.
  */
 const hi: typeof en = {
+  crash: {
+    title: "कुछ गड़बड़ हो गई",
+    body: "आपका डेटा सुरक्षित है। स्क्रीन रीलोड करें और वहीं से आगे बढ़ें जहां थे।",
+    retry: "रीलोड करें",
+  },
   common: {
     close: "बंद करें",
     tryAgain: "फिर कोशिश करें",

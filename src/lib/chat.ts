@@ -1,5 +1,6 @@
 import { currentLanguage } from "@/i18n";
 
+import { API_URL, fetchWithTimeout } from "./http";
 import { supabase } from "./supabase";
 
 export interface ChatCitation {
@@ -23,15 +24,13 @@ export interface VoiceReply extends ChatReply {
   transcript: string;
 }
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
-
 /** Send the conversation to the grounded chat endpoint. Throws if unreachable. */
 export async function sendChat(messages: ChatTurn[]): Promise<ChatReply> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (token === undefined) throw new Error("Not signed in");
 
-  const response = await fetch(`${API_URL}/chat`, {
+  const response = await fetchWithTimeout(`${API_URL}/chat`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -40,7 +39,7 @@ export async function sendChat(messages: ChatTurn[]): Promise<ChatReply> {
     // The user's language preference rides on every AI call so answers,
     // insights, and report explanations come back in their language.
     body: JSON.stringify({ messages, language: currentLanguage() }),
-  });
+  }, 45_000);
   if (!response.ok) {
     throw new Error(`Chat request failed (${response.status})`);
   }
@@ -66,11 +65,16 @@ export async function sendVoiceChat(audioUri: string, history: ChatTurn[]): Prom
   form.append("history", JSON.stringify(history));
   form.append("language", currentLanguage());
 
-  const response = await fetch(`${API_URL}/voice`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}` },
-    body: form,
-  });
+  // Upload + transcription + answer can legitimately take a while.
+  const response = await fetchWithTimeout(
+    `${API_URL}/voice`,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+      body: form,
+    },
+    60_000,
+  );
   if (!response.ok) {
     throw new Error(`Voice request failed (${response.status})`);
   }
