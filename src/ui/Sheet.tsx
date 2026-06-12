@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -73,6 +73,7 @@ const OFFSCREEN = 640;
 export function Sheet({ visible, onClose, title, children }: SheetProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const progress = useSheetProgress();
   const translateY = useSharedValue(OFFSCREEN);
   const [mounted, setMounted] = useState(visible);
@@ -116,19 +117,16 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
     <Modal transparent visible statusBarTranslucent animationType="none" onRequestClose={onClose}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <Animated.View
-          style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(26,26,30,0.35)" }, backdropStyle]}
+          style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }, backdropStyle]}
         >
           <Pressable
-            accessibilityLabel="Close sheet"
+            accessibilityLabel={t("common.close")}
             style={StyleSheet.absoluteFill}
             onPress={onClose}
           />
         </Animated.View>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          pointerEvents="box-none"
-          style={{ flex: 1 }}
-        >
+        {/* Edge-to-edge Android ignores adjustResize, so pad on both platforms. */}
+        <KeyboardAvoidingView behavior="padding" pointerEvents="box-none" style={{ flex: 1 }}>
           <GestureDetector gesture={pan}>
             <Animated.View
               style={[

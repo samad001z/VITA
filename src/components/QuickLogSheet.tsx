@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 
@@ -65,6 +66,7 @@ function Chip({ label, selected, onPress }: ChipProps) {
  * severity, an optional note; lands on the timeline as a 'symptom' event.
  */
 export function QuickLogSheet({ visible, onClose, onLogged }: QuickLogSheetProps) {
+  const { t } = useTranslation();
   const [symptom, setSymptom] = useState<Symptom | null>(null);
   const [severity, setSeverity] = useState<Severity>("Mild");
   const [note, setNote] = useState("");
@@ -90,14 +92,14 @@ export function QuickLogSheet({ visible, onClose, onLogged }: QuickLogSheetProps
       onClose();
     } catch (e) {
       warning();
-      setError(e instanceof Error ? e.message : "Couldn't save — try again.");
+      setError(e instanceof Error ? e.message : t("quickLog.error"));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="How do you feel?">
+    <Sheet visible={visible} onClose={onClose} title={t("quickLog.title")}>
       <View style={{ gap: 20 }}>
         <Animated.View
           entering={enterUp(0)}
@@ -106,7 +108,7 @@ export function QuickLogSheet({ visible, onClose, onLogged }: QuickLogSheetProps
           {SYMPTOMS.map((s) => (
             <Chip
               key={s}
-              label={s}
+              label={t(`symptoms.${s}`)}
               selected={symptom === s}
               onPress={() => setSymptom(symptom === s ? null : s)}
             />
@@ -116,13 +118,13 @@ export function QuickLogSheet({ visible, onClose, onLogged }: QuickLogSheetProps
         {symptom !== null && (
           <Animated.View entering={enterUp(0)} style={{ gap: 8 }}>
             <Text variant="caption" tone="faint" style={{ textTransform: "uppercase", letterSpacing: 1 }}>
-              How strong
+              {t("quickLog.howStrong")}
             </Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
               {SEVERITIES.map((s) => (
                 <Chip
                   key={s}
-                  label={s}
+                  label={t(`severities.${s}`)}
                   selected={severity === s}
                   onPress={() => setSeverity(s)}
                 />
@@ -134,7 +136,7 @@ export function QuickLogSheet({ visible, onClose, onLogged }: QuickLogSheetProps
         {symptom !== null && (
           <Animated.View entering={enterUp(1)} style={{ gap: 12 }}>
             <Input
-              placeholder="Anything else worth noting? (optional)"
+              placeholder={t("quickLog.notePlaceholder")}
               value={note}
               onChangeText={setNote}
               returnKeyType="done"
@@ -145,7 +147,7 @@ export function QuickLogSheet({ visible, onClose, onLogged }: QuickLogSheetProps
               </Text>
             )}
             <Button
-              title="Add to timeline"
+              title={t("quickLog.save")}
               loading={saving}
               onPress={() => void handleSave()}
             />

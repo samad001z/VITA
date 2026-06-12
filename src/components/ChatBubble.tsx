@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 import { FileText } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 
 import { type ChatMessage } from "@/hooks/useChat";
@@ -16,6 +17,7 @@ export interface ChatBubbleProps {
 export function ChatBubble({ message }: ChatBubbleProps) {
   const router = useRouter();
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   if (message.role === "user") {
     return (
@@ -50,8 +52,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
               {citations.map((citation) => (
                 <PressableScale
                   key={citation.report_id}
-                  haptic={false}
-                  accessibilityLabel={`Open report: ${citation.title}`}
+                  accessibilityLabel={t("chat.openReport", { title: citation.title })}
                   onPress={() =>
                     router.push({ pathname: "/report/[id]", params: { id: citation.report_id } })
                   }

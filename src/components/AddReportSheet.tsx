@@ -1,4 +1,5 @@
 import { Camera, FileUp, Images, type LucideIcon } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 
 import {
@@ -17,34 +18,35 @@ export interface AddReportSheetProps {
 
 interface SourceOption {
   icon: LucideIcon;
-  label: string;
-  hint: string;
+  labelKey: string;
+  hintKey: string;
   pick: () => Promise<PickedFile | null>;
 }
 
 const options: SourceOption[] = [
   {
     icon: Camera,
-    label: "Take a photo",
-    hint: "Photograph a printed report",
+    labelKey: "addReport.camera",
+    hintKey: "addReport.cameraHint",
     pick: pickFromCamera,
   },
   {
     icon: Images,
-    label: "Photo library",
-    hint: "Choose an existing photo",
+    labelKey: "addReport.library",
+    hintKey: "addReport.libraryHint",
     pick: pickFromLibrary,
   },
   {
     icon: FileUp,
-    label: "Browse files",
-    hint: "PDF or image from your device",
+    labelKey: "addReport.files",
+    hintKey: "addReport.filesHint",
     pick: pickDocument,
   },
 ];
 
 export function AddReportSheet({ visible, onClose, onPicked }: AddReportSheetProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const handle = async (option: SourceOption): Promise<void> => {
     const file = await option.pick();
     onClose();
@@ -52,14 +54,14 @@ export function AddReportSheet({ visible, onClose, onPicked }: AddReportSheetPro
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Add a report">
+    <Sheet visible={visible} onClose={onClose} title={t("addReport.title")}>
       <View style={{ gap: 8 }}>
         {options.map((option) => {
           const Icon = option.icon;
           return (
             <PressableScale
-              key={option.label}
-              accessibilityLabel={option.label}
+              key={option.labelKey}
+              accessibilityLabel={t(option.labelKey)}
               onPress={() => void handle(option)}
               style={{
                 flexDirection: "row",
@@ -85,9 +87,9 @@ export function AddReportSheet({ visible, onClose, onPicked }: AddReportSheetPro
                 <Icon size={20} strokeWidth={1.5} color={colors.sage} />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
-                <Text variant="label">{option.label}</Text>
+                <Text variant="label">{t(option.labelKey)}</Text>
                 <Text variant="caption" tone="soft">
-                  {option.hint}
+                  {t(option.hintKey)}
                 </Text>
               </View>
             </PressableScale>
@@ -95,7 +97,7 @@ export function AddReportSheet({ visible, onClose, onPicked }: AddReportSheetPro
         })}
       </View>
       <Text variant="caption" tone="faint" style={{ marginTop: 16, textAlign: "center" }}>
-        Files are stored privately and read only to build your timeline.
+        {t("addReport.footer")}
       </Text>
     </Sheet>
   );

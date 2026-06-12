@@ -1,7 +1,8 @@
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { ArrowUp, MessageCircle, Sparkles } from "lucide-react-native";
-import { useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Keyboard, KeyboardAvoidingView, View } from "react-native";
 import Animated from "react-native-reanimated";
 
 import { ChatBubble } from "@/components/ChatBubble";
@@ -18,19 +19,24 @@ import {
   useTheme,
 } from "@/ui";
 
-const SUGGESTIONS = [
-  "Which of my values were flagged?",
-  "Explain my latest report in simple words",
-  "How have my results changed over time?",
-];
+const SUGGESTION_KEYS = ["chat.suggestion1", "chat.suggestion2", "chat.suggestion3"];
 
 export default function ChatScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { messages, thinking, error, send, retry } = useChat();
   const [draft, setDraft] = useState("");
   const listRef = useRef<FlashListRef<ChatMessage>>(null);
 
   const canSend = draft.trim() !== "" && !thinking;
+
+  // Keep the latest messages in view when the keyboard shrinks the list.
+  useEffect(() => {
+    const sub = Keyboard.addListener("keyboardDidShow", () => {
+      listRef.current?.scrollToEnd({ animated: true });
+    });
+    return () => sub.remove();
+  }, []);
 
   const submit = (): void => {
     if (!canSend) return;
@@ -40,12 +46,10 @@ export default function ChatScreen() {
 
   return (
     <Screen tabbed animated={false}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={{ flex: 1 }}
-      >
+      {/* Edge-to-edge Android ignores adjustResize, so pad on both platforms. */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <Animated.View entering={enterUp(0)} style={{ paddingTop: 8, paddingBottom: 12 }}>
-          <Text variant="title">Chat</Text>
+          <Text variant="title">{t("chat.title")}</Text>
         </Animated.View>
 
         {messages.length === 0 ? (
@@ -67,38 +71,40 @@ export default function ChatScreen() {
             </Animated.View>
             <Animated.View entering={enterUp(1)}>
               <Text variant="heading" style={{ textAlign: "center" }}>
-                Ask VITA about your health
+                {t("chat.emptyTitle")}
               </Text>
             </Animated.View>
             <Animated.View entering={enterUp(2)} style={{ alignSelf: "center", maxWidth: 300 }}>
               <Text variant="label" tone="soft" style={{ textAlign: "center", lineHeight: 22 }}>
-                Answers come straight from your reports, with the source attached.
+                {t("chat.emptyBody")}
               </Text>
             </Animated.View>
             <View style={{ gap: 8, marginTop: 12 }}>
-              {SUGGESTIONS.map((suggestion, i) => (
-                <Animated.View key={suggestion} entering={enterUp(3 + i)}>
-                  <PressableScale
-                    haptic={false}
-                    accessibilityLabel={`Ask: ${suggestion}`}
-                    onPress={() => send(suggestion)}
-                    disabled={thinking}
-                  >
-                    <Card rounded="md">
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                        <Sparkles size={16} strokeWidth={1.5} color={colors.sage} />
-                        <Text variant="label" tone="soft" style={{ flex: 1 }}>
-                          {suggestion}
-                        </Text>
-                      </View>
-                    </Card>
-                  </PressableScale>
-                </Animated.View>
-              ))}
+              {SUGGESTION_KEYS.map((key, i) => {
+                const suggestion = t(key);
+                return (
+                  <Animated.View key={key} entering={enterUp(3 + i)}>
+                    <PressableScale
+                      accessibilityLabel={t("chat.ask", { suggestion })}
+                      onPress={() => send(suggestion)}
+                      disabled={thinking}
+                    >
+                      <Card rounded="md">
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                          <Sparkles size={16} strokeWidth={1.5} color={colors.sage} />
+                          <Text variant="label" tone="soft" style={{ flex: 1 }}>
+                            {suggestion}
+                          </Text>
+                        </View>
+                      </Card>
+                    </PressableScale>
+                  </Animated.View>
+                );
+              })}
             </View>
             <Animated.View entering={enterUp(6)}>
               <Text variant="caption" tone="faint" style={{ textAlign: "center", marginTop: 8 }}>
-                VITA explains your data — it never replaces your doctor.
+                {t("chat.disclaimer")}
               </Text>
             </Animated.View>
           </View>
@@ -134,13 +140,12 @@ export default function ChatScreen() {
                   {error}
                 </Text>
                 <PressableScale
-                  haptic={false}
-                  accessibilityLabel="Retry sending"
+                  accessibilityLabel={t("chat.retrySend")}
                   onPress={retry}
                   style={{ paddingHorizontal: 8, justifyContent: "center" }}
                 >
                   <Text variant="caption" tone="sage">
-                    Try again
+                    {t("common.tryAgain")}
                   </Text>
                 </PressableScale>
               </View>
@@ -155,15 +160,15 @@ export default function ChatScreen() {
           <Input
             value={draft}
             onChangeText={setDraft}
-            placeholder="Ask about your reports…"
+            placeholder={t("chat.placeholder")}
             returnKeyType="send"
             onSubmitEditing={submit}
             editable={!thinking}
             style={{ flex: 1 }}
-            accessibilityLabel="Message VITA"
+            accessibilityLabel={t("chat.placeholder")}
           />
           <PressableScale
-            accessibilityLabel="Send message"
+            accessibilityLabel={t("chat.send")}
             onPress={submit}
             disabled={!canSend}
             style={{

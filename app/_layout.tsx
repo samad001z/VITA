@@ -12,9 +12,12 @@ import {
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import { LaunchOverlay, LaunchProvider } from "@/components/LaunchSequence";
+import { initI18n } from "@/i18n";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { SheetProvider, SheetStage, ThemeProvider, useTheme } from "@/ui";
 
@@ -23,6 +26,7 @@ void SplashScreen.preventAutoHideAsync();
 function RootNavigator() {
   const { isLoading } = useAuth();
   const { colors } = useTheme();
+  const [i18nReady, setI18nReady] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -31,7 +35,11 @@ function RootNavigator() {
     Inter_700Bold,
   });
 
-  const ready = fontsLoaded && !isLoading;
+  useEffect(() => {
+    void initI18n().then(() => setI18nReady(true));
+  }, []);
+
+  const ready = fontsLoaded && !isLoading && i18nReady;
 
   useEffect(() => {
     if (ready) {
@@ -42,22 +50,26 @@ function RootNavigator() {
   if (!ready) return null;
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: "fade",
-        animationDuration: 200,
-        contentStyle: { backgroundColor: colors.bg },
-      }}
-    >
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-      {/* Reports rise from below like a sheet of paper being handed over. */}
-      <Stack.Screen
-        name="report/[id]"
-        options={{ animation: "slide_from_bottom", gestureEnabled: true }}
-      />
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: "fade",
+          animationDuration: 200,
+          contentStyle: { backgroundColor: colors.bg },
+        }}
+      >
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        {/* Reports rise from below like a sheet of paper being handed over. */}
+        <Stack.Screen
+          name="report/[id]"
+          options={{ animation: "slide_from_bottom", gestureEnabled: true }}
+        />
+      </Stack>
+      {/* Cold-start brand moment; sits above the navigator until it dissolves. */}
+      <LaunchOverlay />
+    </View>
   );
 }
 
@@ -80,7 +92,9 @@ function ThemedShell() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <ThemedShell />
+      <LaunchProvider>
+        <ThemedShell />
+      </LaunchProvider>
     </ThemeProvider>
   );
 }

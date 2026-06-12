@@ -1,7 +1,9 @@
 import { FileText, Image as ImageIcon, RefreshCw } from "lucide-react-native";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 
+import { currentLocale } from "@/i18n";
 import { type ReportRow } from "@/lib/database.types";
 import { requestExtraction } from "@/lib/reports";
 import { Card, PressableScale, Skeleton, Text, useTheme } from "@/ui";
@@ -12,14 +14,19 @@ export interface ReportCardProps {
   onChanged: () => void;
 }
 
-function formatDate(iso: string | null): string {
-  if (iso === null) return "Date unknown";
+function formatDate(iso: string | null, fallback: string): string {
+  if (iso === null) return fallback;
   const date = new Date(`${iso}T00:00:00`);
-  return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return date.toLocaleDateString(currentLocale(), {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function ReportCard({ report, observationCount, onChanged }: ReportCardProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const [retrying, setRetrying] = useState(false);
   const Icon = report.file_type === "pdf" ? FileText : ImageIcon;
   const isWorking = report.status === "processing";
@@ -59,29 +66,31 @@ export function ReportCard({ report, observationCount, onChanged }: ReportCardPr
           </Text>
           {report.status === "processed" && (
             <Text variant="caption" tone="soft">
-              {observationCount} value{observationCount === 1 ? "" : "s"} ·{" "}
-              {formatDate(report.report_date)}
+              {t("reportCard.processedMeta", {
+                count: observationCount,
+                date: formatDate(report.report_date, t("common.dateUnknown")),
+              })}
             </Text>
           )}
           {isWorking && (
             <Text variant="caption" tone="soft">
-              Reading your report…
+              {t("reportCard.reading")}
             </Text>
           )}
           {isQueued && (
             <Text variant="caption" tone="soft">
-              Waiting to process
+              {t("reportCard.queued")}
             </Text>
           )}
           {isFailed && (
             <Text variant="caption" tone="coral">
-              Couldn't read this report
+              {t("reportCard.failed")}
             </Text>
           )}
         </View>
         {(isFailed || isQueued) && (
           <PressableScale
-            accessibilityLabel="Retry extraction"
+            accessibilityLabel={t("reportCard.retryExtraction")}
             onPress={() => void retry()}
             disabled={retrying}
             style={{
@@ -97,7 +106,7 @@ export function ReportCard({ report, observationCount, onChanged }: ReportCardPr
           >
             <RefreshCw size={16} strokeWidth={1.5} color={colors.sage} />
             <Text variant="caption" tone="sage">
-              Retry
+              {t("common.retry")}
             </Text>
           </PressableScale>
         )}

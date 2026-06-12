@@ -1,8 +1,10 @@
 import { useRouter } from "expo-router";
 import { Activity, MessageSquareHeart } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 
 import { type ObservationStats } from "@/hooks/useTimeline";
+import { currentLocale } from "@/i18n";
 import { type TimelineEventRow } from "@/lib/database.types";
 import { Card, PressableScale, Text, useTheme } from "@/ui";
 
@@ -20,7 +22,11 @@ const DOT_TOP = 22;
 
 export function formatEventDate(iso: string): string {
   const date = new Date(`${iso}T00:00:00`);
-  return date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  return date.toLocaleDateString(currentLocale(), {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
 }
 
 /**
@@ -36,6 +42,7 @@ export function TimelineEventCard({
 }: TimelineEventCardProps) {
   const router = useRouter();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const isPattern = event.event_type === "pattern";
   const isSymptom = event.event_type === "symptom";
   const count = stats?.count ?? 0;
@@ -80,7 +87,7 @@ export function TimelineEventCard({
             }}
           >
             <Text variant="caption" tone="gold">
-              Your pattern · vs your own baseline
+              {t("timeline.patternBadge")}
             </Text>
           </View>
         ) : isSymptom ? (
@@ -95,7 +102,7 @@ export function TimelineEventCard({
             }}
           >
             <Text variant="caption" tone="sage">
-              You logged this
+              {t("timeline.symptomBadge")}
             </Text>
           </View>
         ) : (
@@ -110,7 +117,7 @@ export function TimelineEventCard({
                 }}
               >
                 <Text variant="caption" tone="sage">
-                  {count} value{count === 1 ? "" : "s"}
+                  {t("report.valuesFound", { count })}
                 </Text>
               </View>
               {flagged > 0 && (
@@ -123,7 +130,7 @@ export function TimelineEventCard({
                   }}
                 >
                   <Text variant="caption" tone="coral">
-                    {flagged} flagged
+                    {t("report.flaggedCount", { count: flagged })}
                   </Text>
                 </View>
               )}
@@ -175,8 +182,7 @@ export function TimelineEventCard({
         <View style={{ flex: 1, marginLeft: 4 }}>{body}</View>
       ) : (
         <PressableScale
-          haptic={false}
-          accessibilityLabel={`Open report: ${event.title}`}
+          accessibilityLabel={t("chat.openReport", { title: event.title })}
           onPress={() => {
             if (event.report_id !== null) {
               router.push({ pathname: "/report/[id]", params: { id: event.report_id } });

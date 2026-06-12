@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Platform, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { KeyboardAvoidingView, View } from "react-native";
 import Animated from "react-native-reanimated";
 
 import { error as errorHaptic, success } from "@/lib/haptics";
@@ -12,6 +13,7 @@ const RESEND_SECONDS = 60;
 
 export default function VerifyScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { email } = useLocalSearchParams<{ email: string }>();
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -43,7 +45,7 @@ export default function VerifyScreen() {
     setVerifying(false);
     if (verifyError !== null) {
       errorHaptic();
-      setError("That code didn't match. Check it and try again.");
+      setError(t("auth.wrongCode"));
       setCode("");
       return;
     }
@@ -60,17 +62,15 @@ export default function VerifyScreen() {
 
   return (
     <Screen>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={{ flex: 1 }}
-      >
+      {/* Edge-to-edge Android ignores adjustResize, so pad on both platforms. */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <View style={{ flex: 1, justifyContent: "center", gap: 12 }}>
           <Animated.View entering={enterUp(0)}>
-            <Text variant="title">Enter your code</Text>
+            <Text variant="title">{t("auth.verifyTitle")}</Text>
           </Animated.View>
           <Animated.View entering={enterUp(1)} style={{ marginBottom: 12 }}>
             <Text variant="label" tone="soft">
-              Sent to {typeof email === "string" ? email : "your email"}
+              {t("auth.sentTo", { email: typeof email === "string" ? email : "" })}
             </Text>
           </Animated.View>
           <OTPInput length={CODE_LENGTH} value={code} onChange={setCode} invalid={error !== null} />
@@ -85,7 +85,7 @@ export default function VerifyScreen() {
             {verifying && (
               <Animated.View entering={enterUp(0)}>
                 <Text variant="caption" tone="soft" style={{ textAlign: "center" }}>
-                  Verifying…
+                  {t("auth.verifying")}
                 </Text>
               </Animated.View>
             )}
@@ -94,7 +94,7 @@ export default function VerifyScreen() {
         <Animated.View entering={enterUp(2)} style={{ alignItems: "center", gap: 4 }}>
           {resendIn > 0 ? (
             <Text variant="caption" tone="faint">
-              You can resend the code in {resendIn}s
+              {t("auth.resendIn", { seconds: resendIn })}
             </Text>
           ) : (
             <PressableScale
@@ -102,7 +102,7 @@ export default function VerifyScreen() {
               style={{ paddingHorizontal: 16, justifyContent: "center" }}
             >
               <Text variant="label" tone="sage">
-                Resend code
+                {t("auth.resend")}
               </Text>
             </PressableScale>
           )}

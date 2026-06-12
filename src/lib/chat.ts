@@ -1,3 +1,5 @@
+import { currentLanguage } from "@/i18n";
+
 import { supabase } from "./supabase";
 
 export interface ChatCitation {
@@ -30,7 +32,9 @@ export async function sendChat(messages: ChatTurn[]): Promise<ChatReply> {
       "content-type": "application/json",
       authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ messages }),
+    // The user's language preference rides on every AI call so answers,
+    // insights, and report explanations come back in their language.
+    body: JSON.stringify({ messages, language: currentLanguage() }),
   });
   if (!response.ok) {
     throw new Error(`Chat request failed (${response.status})`);

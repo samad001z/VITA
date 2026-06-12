@@ -4,7 +4,7 @@ import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { enterUp } from "./motion";
-import { SCREEN_PADDING } from "./theme";
+import { SCREEN_PADDING, TAB_BAR_HEIGHT, TAB_BAR_OFFSET } from "./theme";
 import { useTheme } from "./ThemeContext";
 
 export interface ScreenProps extends ViewProps {
@@ -18,7 +18,8 @@ export interface ScreenProps extends ViewProps {
   orbs?: boolean;
 }
 
-const TAB_BAR_CLEARANCE = 96;
+/** Content must end tab-bar height + 16 above the safe-area edge. */
+const TAB_BAR_CLEARANCE = TAB_BAR_OFFSET + TAB_BAR_HEIGHT + 16;
 
 /** Soft out-of-focus gradient discs that give the canvas depth. */
 function AmbientOrbs() {

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 
 import { METRIC_ICONS } from "@/components/metricIcons";
 import { registerHealthSyncTask, unregisterHealthSyncTask } from "@/lib/health/backgroundTask";
 import { getHealthProvider } from "@/lib/health/provider";
 import { getEnabledMetrics, setEnabledMetrics } from "@/lib/health/settings";
-import { ALL_METRICS, type HealthMetric, METRIC_INFO } from "@/lib/health/types";
+import { ALL_METRICS, type HealthMetric } from "@/lib/health/types";
 import { Button, Sheet, Text, Toggle, useTheme } from "@/ui";
 
 export interface HealthSheetProps {
@@ -21,6 +22,7 @@ export interface HealthSheetProps {
  */
 export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const provider = getHealthProvider();
   const [selected, setSelected] = useState<Set<HealthMetric>>(new Set(ALL_METRICS));
   const [busy, setBusy] = useState(false);
@@ -51,9 +53,7 @@ export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
     try {
       const available = await provider.isAvailable();
       if (!available) {
-        setError(
-          "Health data isn't available on this device. On Android, install the Health Connect app first.",
-        );
+        setError(t("healthSheet.errUnavailable"));
         return;
       }
       if (metrics.length === 0) {
@@ -65,7 +65,7 @@ export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
       }
       const granted = await provider.requestPermissions(metrics);
       if (!granted) {
-        setError("No permissions were granted. You can change this anytime in system settings.");
+        setError(t("healthSheet.errDenied"));
         return;
       }
       await setEnabledMetrics(metrics);
@@ -73,36 +73,33 @@ export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
       onChanged();
       onClose();
     } catch {
-      setError("Something went wrong talking to the health store. Try again.");
+      setError(t("healthSheet.errGeneric"));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Connect health data">
+    <Sheet visible={visible} onClose={onClose} title={t("healthSheet.title")}>
       {provider === null ? (
         <View style={{ gap: 16, paddingBottom: 4 }}>
           <Text variant="label" tone="soft" style={{ lineHeight: 22 }}>
-            Reading heart rate, sleep, and activity needs VITA's full app build —
-            it isn't possible inside Expo Go. Install the development build and
-            this screen unlocks automatically.
+            {t("healthSheet.expoGo")}
           </Text>
           <Text variant="caption" tone="faint">
-            On your computer: eas build --profile development --platform android
+            {t("healthSheet.expoGoCmd")}
           </Text>
-          <Button title="Got it" variant="secondary" onPress={onClose} />
+          <Button title={t("common.gotIt")} variant="secondary" onPress={onClose} />
         </View>
       ) : (
         <View style={{ gap: 4, paddingBottom: 4 }}>
           <Text variant="label" tone="soft" style={{ lineHeight: 22, marginBottom: 12 }}>
-            VITA learns what's normal for you — never comparing you to anyone else.
-            Choose what to share; you can change your mind anytime.
+            {t("healthSheet.intro")}
           </Text>
           <View style={{ gap: 2 }}>
             {ALL_METRICS.map((metric) => {
               const Icon = METRIC_ICONS[metric];
-              const info = METRIC_INFO[metric];
+              const label = t(`metrics.${metric}.label`);
               return (
                 <View
                   key={metric}
@@ -126,15 +123,15 @@ export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
                     <Icon size={18} strokeWidth={1.5} color={colors.sage} />
                   </View>
                   <View style={{ flex: 1, gap: 1 }}>
-                    <Text variant="label">{info.label}</Text>
+                    <Text variant="label">{label}</Text>
                     <Text variant="caption" tone="soft">
-                      {info.why}
+                      {t(`metrics.${metric}.why`)}
                     </Text>
                   </View>
                   <Toggle
                     value={selected.has(metric)}
                     onChange={() => toggle(metric)}
-                    accessibilityLabel={`Share ${info.label}`}
+                    accessibilityLabel={t("healthSheet.shareMetric", { label })}
                     disabled={busy}
                   />
                 </View>
@@ -148,12 +145,12 @@ export function HealthSheet({ visible, onClose, onChanged }: HealthSheetProps) {
           )}
           <View style={{ marginTop: 16, gap: 8 }}>
             <Button
-              title={selected.size === 0 ? "Disconnect health data" : "Connect"}
+              title={selected.size === 0 ? t("healthSheet.disconnect") : t("healthSheet.connect")}
               loading={busy}
               onPress={() => void connect()}
             />
             <Text variant="caption" tone="faint" style={{ textAlign: "center" }}>
-              Data stays in your private VITA account, summarized by day.
+              {t("healthSheet.footer")}
             </Text>
           </View>
         </View>

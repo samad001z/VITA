@@ -24,7 +24,7 @@ export function SectionHeader({ title, trailing, style, ...rest }: SectionHeader
       ]}
       {...rest}
     >
-      <Text variant="caption" tone="faint" style={{ textTransform: "uppercase", letterSpacing: 1 }}>
+      <Text variant="caption" tone="soft" style={{ textTransform: "uppercase", letterSpacing: 1 }}>
         {title}
       </Text>
       {trailing}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
@@ -31,6 +32,7 @@ function formatCountdown(total: number): string {
  */
 export function ShareSheet({ visible, onClose }: ShareSheetProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const [phase, setPhase] = useState<Phase>("creating");
   const [grant, setGrant] = useState<ShareGrant | null>(null);
   const [left, setLeft] = useState(0);
@@ -78,28 +80,26 @@ export function ShareSheet({ visible, onClose }: ShareSheetProps) {
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Share with your doctor">
+    <Sheet visible={visible} onClose={onClose} title={t("shareSheet.title")}>
       <View style={{ gap: 16, paddingBottom: 4 }}>
         {phase === "error" ? (
           <>
             <Text variant="label" tone="soft" style={{ lineHeight: 22 }}>
-              Couldn't prepare a share code. Check that you're online and try again.
+              {t("shareSheet.error")}
             </Text>
-            <Button title="Try again" onPress={() => void mint()} />
+            <Button title={t("common.tryAgain")} onPress={() => void mint()} />
           </>
         ) : phase === "expired" ? (
           <>
             <Text variant="label" tone="soft" style={{ lineHeight: 22 }}>
-              This code has expired. Codes last 30 minutes — generate a fresh one
-              when your doctor is ready.
+              {t("shareSheet.expired")}
             </Text>
-            <Button title="Generate a new code" onPress={() => void mint()} />
+            <Button title={t("shareSheet.generateNew")} onPress={() => void mint()} />
           </>
         ) : (
           <>
             <Text variant="label" tone="soft" style={{ lineHeight: 22 }}>
-              Your doctor scans this code to see a read-only copy of your timeline.
-              It works once and expires after 30 minutes.
+              {t("shareSheet.body")}
             </Text>
             <View
               style={{
@@ -124,10 +124,12 @@ export function ShareSheet({ visible, onClose }: ShareSheetProps) {
               )}
             </View>
             <Text variant="caption" tone="soft" style={{ textAlign: "center" }}>
-              {phase === "active" ? `Expires in ${formatCountdown(left)}` : "Preparing your code…"}
+              {phase === "active"
+                ? t("shareSheet.expiresIn", { time: formatCountdown(left) })
+                : t("shareSheet.preparing")}
             </Text>
             <Button
-              title="Revoke access"
+              title={t("shareSheet.revoke")}
               variant="secondary"
               loading={revoking}
               disabled={phase !== "active"}
@@ -136,7 +138,7 @@ export function ShareSheet({ visible, onClose }: ShareSheetProps) {
           </>
         )}
         <Text variant="caption" tone="faint" style={{ textAlign: "center" }}>
-          Sharing never includes your chats — only reports and their values.
+          {t("shareSheet.footer")}
         </Text>
       </View>
     </Sheet>

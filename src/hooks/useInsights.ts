@@ -16,6 +16,8 @@ export interface MetricInsight {
   latest: number;
   /** Oldest → newest values for the sparkline. */
   series: number[];
+  /** ISO day ("YYYY-MM-DD") for each series point — gaps are real gaps. */
+  seriesDays: string[];
   /** "+6% vs your normal" — null until a baseline exists. */
   delta: string | null;
   deltaTone: "soft" | "sage" | "gold";
@@ -64,6 +66,7 @@ function buildInsight(metric: HealthMetric, rows: MetricDailyRollupRow[]): Metri
     unit: METRIC_INFO[metric].unit,
     latest: latestRow.value,
     series: rows.slice(-SERIES_POINTS).map((r) => r.value),
+    seriesDays: rows.slice(-SERIES_POINTS).map((r) => r.day),
     delta,
     deltaTone,
   };

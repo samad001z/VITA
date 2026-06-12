@@ -1,13 +1,16 @@
 import { useRouter } from "expo-router";
 import { HeartPulse } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 
+import { LanguagePicker } from "@/components/LanguagePicker";
 import { Bloom, Button, enterUp, Screen, Text, useTheme } from "@/ui";
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <Screen animated={false}>
@@ -33,20 +36,20 @@ export default function WelcomeScreen() {
         </Animated.View>
         <Animated.View entering={enterUp(2)}>
           <Text variant="heading" tone="soft" style={{ lineHeight: 30 }}>
-            Your health story,{"\n"}beautifully kept.
+            {t("welcome.tagline")}
           </Text>
         </Animated.View>
         <Animated.View entering={enterUp(3)} style={{ marginTop: 8 }}>
           <Text variant="label" tone="faint" style={{ lineHeight: 22 }}>
-            Upload medical reports, see your history as a living timeline, and
-            share it safely when it matters.
+            {t("welcome.body")}
           </Text>
         </Animated.View>
       </View>
       <Animated.View entering={enterUp(4)} style={{ gap: 12 }}>
-        <Button title="Continue with email" onPress={() => router.push("/(auth)/email")} />
+        <LanguagePicker />
+        <Button title={t("welcome.cta")} onPress={() => router.push("/(auth)/email")} />
         <Text variant="caption" tone="faint" style={{ textAlign: "center" }}>
-          Private by design. Your data is yours alone.
+          {t("welcome.privacy")}
         </Text>
       </Animated.View>
     </Screen>

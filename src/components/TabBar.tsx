@@ -2,21 +2,30 @@ import { BlurView } from "expo-blur";
 import { type Tabs } from "expo-router";
 import { HeartPulse, MessageCircle, UserRound, type LucideIcon } from "lucide-react-native";
 import { type ComponentProps, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import Animated, { useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { PressableScale, radius, SCREEN_PADDING, SPRING, Text, useTheme } from "@/ui";
+import {
+  PressableScale,
+  radius,
+  SCREEN_PADDING,
+  SPRING,
+  TAB_BAR_HEIGHT,
+  TAB_BAR_OFFSET,
+  Text,
+  useTheme,
+} from "@/ui";
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0];
 
-const TAB_BAR_HEIGHT = 64;
 const INDICATOR_INSET = 8;
 
-const tabConfig: Record<string, { icon: LucideIcon; label: string }> = {
-  index: { icon: HeartPulse, label: "Home" },
-  chat: { icon: MessageCircle, label: "Chat" },
-  profile: { icon: UserRound, label: "You" },
+const tabConfig: Record<string, { icon: LucideIcon; labelKey: string }> = {
+  index: { icon: HeartPulse, labelKey: "tabs.home" },
+  chat: { icon: MessageCircle, labelKey: "tabs.chat" },
+  profile: { icon: UserRound, labelKey: "tabs.you" },
 };
 
 /**
@@ -26,6 +35,7 @@ const tabConfig: Record<string, { icon: LucideIcon; label: string }> = {
 export function TabBar({ state, descriptors, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const { colors, scheme } = useTheme();
+  const { t } = useTranslation();
   const [barWidth, setBarWidth] = useState(0);
 
   const tabWidth = barWidth > 0 ? barWidth / state.routes.length : 0;
@@ -43,7 +53,7 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
         position: "absolute",
         left: SCREEN_PADDING,
         right: SCREEN_PADDING,
-        bottom: insets.bottom + 12,
+        bottom: insets.bottom + TAB_BAR_OFFSET,
       }}
     >
       <BlurView
@@ -82,12 +92,13 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
             if (config === undefined) return null;
             const isFocused = state.index === index;
             const Icon = config.icon;
+            const label = t(config.labelKey);
             const { options } = descriptors[route.key] ?? {};
 
             return (
               <PressableScale
                 key={route.key}
-                accessibilityLabel={options?.tabBarAccessibilityLabel ?? config.label}
+                accessibilityLabel={options?.tabBarAccessibilityLabel ?? label}
                 accessibilityState={{ selected: isFocused }}
                 onPress={() => {
                   const event = navigation.emit({
@@ -112,7 +123,7 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
                   color={isFocused ? colors.sage : colors.inkSoft}
                 />
                 <Text variant="caption" tone={isFocused ? "sage" : "soft"}>
-                  {config.label}
+                  {label}
                 </Text>
               </PressableScale>
             );

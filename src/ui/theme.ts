@@ -47,6 +47,8 @@ const lightColors = {
   hairline: "rgba(22,24,28,0.07)",
   /** Neutral fill for skeletons, off-toggle tracks, quiet wells. */
   fill: "rgba(22,24,28,0.06)",
+  /** Backdrop behind sheets and overlays. */
+  scrim: "rgba(20,31,24,0.38)",
   onSage: "#FFFFFF",
 };
 
@@ -82,6 +84,7 @@ const darkColors: ColorPalette = {
 
   hairline: "rgba(242,245,240,0.09)",
   fill: "rgba(242,245,240,0.08)",
+  scrim: "rgba(5,8,6,0.52)",
   onSage: "#FFFFFF",
 };
 
@@ -142,6 +145,14 @@ export const radius = {
 export const space = (n: number): number => n * 4;
 
 export const SCREEN_PADDING = 20;
+
+/**
+ * Floating tab bar geometry. Screen's tabbed clearance derives from these so
+ * scrollable content always ends tab-bar height + 16 above the screen bottom.
+ */
+export const TAB_BAR_HEIGHT = 64;
+/** Gap between the tab bar and the home indicator / safe-area edge. */
+export const TAB_BAR_OFFSET = 12;
 
 /** The one spring. Layout, entrances, presses — everything moves with this. */
 export const SPRING = { damping: 18, stiffness: 180 } as const;

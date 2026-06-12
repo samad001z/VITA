@@ -40,6 +40,24 @@ The user's health records:
 
 _NO_RECORDS = "No reports on file yet."
 
+# Phase 10: the app sends the user's language with every call. Medical terms
+# stay bilingual (local script + English) because reports are usually English.
+_LANGUAGE_RULES = {
+    "en": "",
+    "te": (
+        "\nLanguage requirement: respond ONLY in Telugu (తెలుగు). Keep medical "
+        "terms bilingual — Telugu first with English in parentheses, e.g. "
+        "రక్తపోటు (Blood Pressure), హిమోగ్లోబిన్ (Hemoglobin). Quote values, "
+        "units, and dates exactly as recorded.\n"
+    ),
+    "hi": (
+        "\nLanguage requirement: respond ONLY in Hindi (हिन्दी). Keep medical "
+        "terms bilingual — Hindi first with English in parentheses, e.g. "
+        "रक्तचाप (Blood Pressure), हीमोग्लोबिन (Hemoglobin). Quote values, "
+        "units, and dates exactly as recorded.\n"
+    ),
+}
+
 _METRIC_LABELS = {
     "heart_rate": ("Heart rate", "bpm"),
     "sleep_minutes": ("Sleep", "min/night"),
@@ -127,11 +145,12 @@ def build_context(
     return "\n\n".join(blocks)
 
 
-def answer_question(history: list[dict], context: str) -> ChatAnswer:
+def answer_question(history: list[dict], context: str, language: str = "en") -> ChatAnswer:
     """Run the grounded chat turn and validate the structured response.
 
     `history` is the conversation as [{"role": "user"|"assistant", "content": str}].
-    Raises pydantic.ValidationError or google.genai errors on failure.
+    `language` selects the response language (en/te/hi); unknown codes fall
+    back to English. Raises pydantic.ValidationError or google.genai errors.
     """
     client = genai.Client(
         vertexai=True,
@@ -152,7 +171,9 @@ def answer_question(history: list[dict], context: str) -> ChatAnswer:
         model=model,
         contents=contents,
         config=types.GenerateContentConfig(
-            system_instruction=_SYSTEM + context,
+            system_instruction=_SYSTEM
+            + _LANGUAGE_RULES.get(language, "")
+            + context,
             response_mime_type="application/json",
             response_json_schema=wire_schema(ChatAnswer),
             temperature=0.2,

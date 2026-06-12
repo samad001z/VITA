@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TextInput, type TextInputProps, type TextStyle } from "react-native";
+import { TextInput, type TextInputProps, type TextStyle, type ViewStyle } from "react-native";
 
 import { fontStyle, radius, typeScale } from "./theme";
 import { useTheme } from "./ThemeContext";
@@ -10,7 +10,7 @@ export interface InputProps extends TextInputProps {
 
 /**
  * Standard text field: surface on bone, hairline border,
- * sage focus ring, coral when invalid.
+ * sage focus ring with a soft glow, coral when invalid.
  */
 export function Input({ invalid = false, style, onFocus, onBlur, ...rest }: InputProps) {
   const { colors } = useTheme();
@@ -30,11 +30,21 @@ export function Input({ invalid = false, style, onFocus, onBlur, ...rest }: Inpu
     ...fontStyle("regular"),
   };
 
+  const focusGlow: ViewStyle | null = focused
+    ? {
+        shadowColor: invalid ? colors.coral : colors.sage,
+        shadowOpacity: 0.22,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 4,
+      }
+    : null;
+
   return (
     <TextInput
       placeholderTextColor={colors.inkFaint}
       selectionColor={colors.sage}
-      style={[baseStyle, style]}
+      style={[baseStyle, focusGlow, style]}
       onFocus={(e) => {
         setFocused(true);
         onFocus?.(e);

@@ -76,6 +76,8 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1, max_length=30)
+    # User's UI language; the model answers in it (en/te/hi, default en).
+    language: Literal["en", "te", "hi"] = "en"
 
 
 class Citation(BaseModel):
@@ -176,7 +178,9 @@ def chat(body: ChatRequest, user_id: str = Depends(_verify_user)) -> ChatRespons
 
     # 2. Grounded Gemini turn, Pydantic-validated.
     try:
-        result = answer_question([m.model_dump() for m in body.messages], context)
+        result = answer_question(
+            [m.model_dump() for m in body.messages], context, body.language
+        )
     except Exception as exc:
         logger.exception("Chat failed for user %s", user_id)
         raise HTTPException(status_code=502, detail="Chat failed") from exc

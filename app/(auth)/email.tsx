@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { KeyboardAvoidingView, View } from "react-native";
 import Animated from "react-native-reanimated";
 
 import { supabase } from "@/lib/supabase";
@@ -10,6 +11,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function EmailScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,17 +38,15 @@ export default function EmailScreen() {
 
   return (
     <Screen>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={{ flex: 1 }}
-      >
+      {/* Edge-to-edge Android ignores adjustResize, so pad on both platforms. */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <View style={{ flex: 1, justifyContent: "center", gap: 12 }}>
           <Animated.View entering={enterUp(0)}>
-            <Text variant="title">What's your email?</Text>
+            <Text variant="title">{t("auth.emailTitle")}</Text>
           </Animated.View>
           <Animated.View entering={enterUp(1)} style={{ marginBottom: 8 }}>
             <Text variant="label" tone="soft">
-              We'll send you a six-digit sign-in code. No passwords.
+              {t("auth.emailSub")}
             </Text>
           </Animated.View>
           <Animated.View entering={enterUp(2)}>
@@ -56,7 +56,7 @@ export default function EmailScreen() {
                 setEmail(v);
                 setError(null);
               }}
-              placeholder="you@example.com"
+              placeholder={t("auth.emailPlaceholder")}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -79,7 +79,7 @@ export default function EmailScreen() {
         </View>
         <Animated.View entering={enterUp(3)}>
           <Button
-            title="Send code"
+            title={t("auth.sendCode")}
             onPress={() => void sendCode()}
             disabled={!valid}
             loading={sending}
